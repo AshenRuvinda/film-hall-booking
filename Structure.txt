@@ -1,0 +1,163 @@
+film-hall-booking/
+├── backend/
+│   ├── package.json
+│   ├── server.js                 # Entry point
+│   ├── .env                      # Environment variables (DB URI, PORT, etc.)
+│   ├── config/
+│   │   └── db.js                 # MongoDB connection
+│   ├── models/
+│   │   ├── User.js               # Users (User/Admin/Operator)
+│   │   ├── Movie.js
+│   │   ├── Hall.js
+│   │   ├── Showtime.js
+│   │   ├── Booking.js
+│   │   └── Seat.js
+│   ├── routes/
+│   │   ├── authRoutes.js         # Login/Signup routes (simple login)
+│   │   ├── userRoutes.js         # User APIs (bookings, seats)
+│   │   ├── adminRoutes.js        # Admin APIs (movies, halls, showtimes)
+│   │   └── operatorRoutes.js     # Operator APIs (scan ticket, check-in)
+│   └── controllers/
+│       ├── authController.js
+│       ├── userController.js
+│       ├── adminController.js
+│       └── operatorController.js
+│
+├── frontend/
+│   ├── package.json
+│   ├── index.html
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── css/
+│   │   └── styles.css             # Tailwind CSS main file
+│   ├── js/
+│   │   ├── app.js                 # Main JS, routing logic
+│   │   ├── auth/
+│   │   │   ├── login.js           # Simple login logic
+│   │   │   ├── userLogin.js       # Separate user login page
+│   │   │   └── staffLogin.js      # Admin/Operator login page
+│   │   ├── user/
+│   │   │   ├── dashboard.js
+│   │   │   ├── movieDetail.js
+│   │   │   ├── seatSelection.js
+│   │   │   ├── bookingSummary.js
+│   │   │   └── myBookings.js
+│   │   ├── admin/
+│   │   │   ├── dashboard.js
+│   │   │   ├── manageMovies.js
+│   │   │   ├── manageHalls.js
+│   │   │   ├── manageShowtimes.js
+│   │   │   └── reports.js
+│   │   └── operator/
+│   │       ├── dashboard.js
+│   │       └── scanTicket.js
+│   │
+│   └── components/
+│       ├── navbar.js
+│       ├── footer.js
+│       ├── movieCard.js
+│       ├── seatMap.js
+│       ├── bookingCard.js
+│       └── qrScanner.js
+│
+├── .gitignore
+└── README.md
+
+
+Prompt:
+
+Create a Film Hall Ticket Booking Website using the MERN stack (MongoDB, Express, Node.js, React JS) with plain JS files (no JSX, no Vite) and Tailwind CSS for styling. The system should have three roles: User, Admin, and Operator, each with separate login pages and role-based URL access. Use a simple login system (no JWT). Include a .env file for environment variables like PORT and MONGO_URI. The ticket system must allow users to download e-tickets as PDFs with QR codes that store booking details such as film name, hall, showtime, seat numbers, and payment status. The QR code should be scannable by the Operator, who can view booking information and optionally mark tickets as checked-in.
+
+User Features:
+
+User registration and login (simple authentication)
+
+Browse movies with poster, title, description, and showtimes for the current week
+
+Showtimes: 10:00 AM, 1:30 PM, 4:30 PM, 7:30 PM daily
+
+Seat selection: default 2 seats (user can adjust), including normal and box seats
+
+Cannot book past showtimes
+
+Booking summary page showing movie, hall, showtime, selected seats, total price
+
+Payment options: Card payment (simulate Stripe/PayPal or mock) or Pay at Gate
+
+Downloadable e-ticket PDF with QR code containing booking details
+
+Admin Features:
+
+Separate login page for admin
+
+Dashboard to add, edit, delete movies, manage halls, assign showtimes
+
+View all bookings and filter by movie, hall, date, or payment method
+
+Reports: daily/weekly revenue, seat occupancy, most popular movies
+
+Update booking status, cancel or refund tickets
+
+Operator Features:
+
+Separate login page for operator
+
+Dashboard to scan QR codes from e-tickets
+
+Display decoded booking details: movie, hall, showtime, seat numbers, payment status
+
+Optionally mark ticket as checked-in
+
+Database Models:
+
+Users: id, name, email, password, role (user/admin/operator)
+
+Movies: id, title, description, poster_url, duration, genre
+
+Halls: id, name, totalSeats, boxSeats
+
+Showtimes: id, movie_id, hall_id, date, time
+
+Seats: id, showtime_id, seat_number, is_booked, booked_by
+
+Bookings: id, user_id, showtime_id, seats[], total_price, payment_method, payment_status, checked_in
+
+Backend Structure:
+
+server.js as the entry point
+
+Config: db.js for MongoDB connection
+
+Models: User, Movie, Hall, Showtime, Seat, Booking
+
+Routes: authRoutes.js, userRoutes.js, adminRoutes.js, operatorRoutes.js
+
+Controllers: authController.js, userController.js, adminController.js, operatorController.js
+
+Frontend Structure:
+
+Pages:
+
+User: dashboard, movieDetail, seatSelection, bookingSummary, myBookings
+
+Admin: dashboard, manageMovies, manageHalls, manageShowtimes, reports
+
+Operator: dashboard, scanTicket
+
+Components: navbar, footer, movieCard, seatMap, bookingCard, qrScanner
+
+Auth pages: userLogin.js, staffLogin.js
+
+Main JS: app.js for routing and page rendering
+
+Extra Requirements:
+
+Tailwind CSS for responsive and modern UI
+
+Role-based URL redirects for security
+
+Downloadable e-tickets with QR codes
+
+Booking cannot be made for past showtimes
+
+Simple MVP first; future enhancements may include analytics, email notifications, and payment integration

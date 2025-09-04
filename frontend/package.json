@@ -1,0 +1,19 @@
+{
+    "name": "film-hall-booking-frontend",
+    "version": "1.0.0",
+    "description": "Frontend for Film Hall Ticket Booking System",
+    "scripts": {
+      "build:css": "tailwindcss build css/styles.css -o css/output.css",
+      "start": "live-server --open=index.html"
+    },
+    "dependencies": {
+      "autoprefixer": "^10.4.20",
+      "postcss": "^8.4.42",
+      "tailwindcss": "^3.4.10"
+    },
+    "devDependencies": {
+      "live-server": "^1.2.2"
+    },
+    "author": "",
+    "license": "ISC"
+  }
