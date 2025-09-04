@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
-const ShowtimeSchema = new mongoose.Schema({
-  movie_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie', required: true },
-  hall_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Hall', required: true },
-  date: { type: Date, required: true },
-  time: { type: String, required: true }, // e.g., '10:00 AM'
+const showtimeSchema = new mongoose.Schema({
+  movieId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie', required: true },
+  hallId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hall', required: true },
+  startTime: { type: Date, required: true },
+  endTime: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Showtime', ShowtimeSchema);
+module.exports = mongoose.model('Showtime', showtimeSchema);

@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-const BookingSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  showtime_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Showtime', required: true },
+const bookingSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  showtimeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showtime', required: true },
   seats: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Seat' }],
-  total_price: { type: Number, required: true },
-  payment_method: { type: String, enum: ['card', 'pay_at_gate'], required: true },
-  payment_status: { type: String, enum: ['pending', 'paid'], default: 'pending' },
-  checked_in: { type: Boolean, default: false },
+  totalPrice: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'confirmed', 'checked-in'], default: 'pending' },
+  qrCode: { type: String }, // URL or data for QR code
+  createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Booking', BookingSchema);
+module.exports = mongoose.model('Booking', bookingSchema);

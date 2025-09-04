@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
 
-const MovieSchema = new mongoose.Schema({
+const movieSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  description: { type: String, required: true },
-  poster_url: { type: String, required: true },
-  duration: { type: Number, required: true }, // in minutes
-  genre: { type: String, required: true },
+  description: { type: String },
+  poster: { type: String }, // URL or path to poster image
+  duration: { type: Number }, // in minutes
+  genre: { type: String },
+  createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Movie', MovieSchema);
+module.exports = mongoose.model('Movie', movieSchema);
