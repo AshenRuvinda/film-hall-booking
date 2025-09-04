@@ -1,3 +1,4 @@
+// frontend/src/contexts/AuthContext.js - FIXED VERSION
 import React, { createContext, useState, useEffect } from 'react';
 import api from '../utils/api';
 
@@ -8,22 +9,22 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in (e.g., via session cookie)
-    const checkAuth = async () => {
-      try {
-        const res = await api.get('/auth/check');
-        if (res.data.user) {
-          setUser(res.data.user);
-        }
-      } catch (error) {
-        console.log('No active session');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await api.get('/auth/check');
+      if (res.data.user) {
+        setUser(res.data.user);
+      }
+    } catch (error) {
+      console.log('No active session');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email, password, role) => {
     try {
@@ -32,18 +33,18 @@ export const AuthProvider = ({ children }) => {
       return res.data;
     } catch (error) {
       console.error('Login error:', error);
-      throw error;
+      throw error.response?.data || error;
     }
   };
 
-  const register = async (name, email, password, role) => {
+  const register = async (name, email, password, role = 'user') => {
     try {
       const res = await api.post('/auth/register', { name, email, password, role });
       setUser(res.data.user);
       return res.data;
     } catch (error) {
       console.error('Registration error:', error);
-      throw error;
+      throw error.response?.data || error;
     }
   };
 
@@ -62,12 +63,13 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    loading
+    loading,
+    checkAuth
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

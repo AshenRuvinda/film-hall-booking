@@ -1,20 +1,30 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+// frontend/src/App.js - ENHANCED WITH PROTECTED ROUTES
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/common/Layout';
+import ProtectedRoute from './components/common/ProtectedRoute';
+
+// Auth pages
 import UserLogin from './pages/auth/UserLogin';
 import UserRegister from './pages/auth/UserRegister';
 import StaffLogin from './pages/auth/StaffLogin';
 import StaffRegister from './pages/auth/StaffRegister';
+
+// User pages
 import UserDashboard from './pages/user/Dashboard';
 import MovieDetail from './pages/user/MovieDetail';
 import SeatSelection from './pages/user/SeatSelection';
 import BookingSummary from './pages/user/BookingSummary';
 import MyBookings from './pages/user/MyBookings';
+
+// Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
 import ManageMovies from './pages/admin/ManageMovies';
 import ManageHalls from './pages/admin/ManageHalls';
 import ManageShowtimes from './pages/admin/ManageShowtimes';
 import Reports from './pages/admin/Reports';
+
+// Operator pages
 import OperatorDashboard from './pages/operator/Dashboard';
 import ScanTicket from './pages/operator/ScanTicket';
 
@@ -24,23 +34,80 @@ function App() {
       <AuthProvider>
         <Layout>
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<UserLogin />} />
             <Route path="/register" element={<UserRegister />} />
             <Route path="/staff/login" element={<StaffLogin />} />
             <Route path="/staff/register" element={<StaffRegister />} />
-            <Route path="/user/dashboard" element={<UserDashboard />} />
-            <Route path="/user/movie/:id" element={<MovieDetail />} />
-            <Route path="/user/seat-selection/:showtimeId" element={<SeatSelection />} />
-            <Route path="/user/booking-summary/:bookingId" element={<BookingSummary />} />
-            <Route path="/user/bookings" element={<MyBookings />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/movies" element={<ManageMovies />} />
-            <Route path="/admin/halls" element={<ManageHalls />} />
-            <Route path="/admin/showtimes" element={<ManageShowtimes />} />
-            <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/operator/dashboard" element={<OperatorDashboard />} />
-            <Route path="/operator/scan-ticket" element={<ScanTicket />} />
-            <Route path="/" element={<UserDashboard />} />
+            
+            {/* User routes */}
+            <Route path="/user/dashboard" element={
+              <ProtectedRoute requiredRole="user">
+                <UserDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/movie/:id" element={
+              <ProtectedRoute requiredRole="user">
+                <MovieDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/seat-selection/:showtimeId" element={
+              <ProtectedRoute requiredRole="user">
+                <SeatSelection />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/booking-summary/:bookingId" element={
+              <ProtectedRoute requiredRole="user">
+                <BookingSummary />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/bookings" element={
+              <ProtectedRoute requiredRole="user">
+                <MyBookings />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin routes */}
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/movies" element={
+              <ProtectedRoute requiredRole="admin">
+                <ManageMovies />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/halls" element={
+              <ProtectedRoute requiredRole="admin">
+                <ManageHalls />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/showtimes" element={
+              <ProtectedRoute requiredRole="admin">
+                <ManageShowtimes />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <ProtectedRoute requiredRole="admin">
+                <Reports />
+              </ProtectedRoute>
+            } />
+            
+            {/* Operator routes */}
+            <Route path="/operator/dashboard" element={
+              <ProtectedRoute requiredRole="operator">
+                <OperatorDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/operator/scan-ticket" element={
+              <ProtectedRoute requiredRole="operator">
+                <ScanTicket />
+              </ProtectedRoute>
+            } />
+            
+            {/* Default route */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
         </Layout>
       </AuthProvider>
