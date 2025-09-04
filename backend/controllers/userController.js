@@ -1,4 +1,4 @@
-// backend/controllers/userController.js - FIXED VERSION
+// backend/controllers/userController.js - COMPLETE FIXED VERSION
 const Movie = require('../models/Movie');
 const Booking = require('../models/Booking');
 const Seat = require('../models/Seat');
@@ -8,36 +8,49 @@ const QRCode = require('qrcode');
 
 exports.getMovies = async (req, res) => {
   try {
-    const movies = await Movie.find();
+    console.log('Fetching movies...');
+    const movies = await Movie.find().sort({ createdAt: -1 });
+    console.log(`Found ${movies.length} movies`);
     res.json(movies);
   } catch (error) {
     console.error('Get movies error:', error);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };
 
 exports.getMovieById = async (req, res) => {
   try {
+    console.log(`Fetching movie with ID: ${req.params.id}`);
     const movie = await Movie.findById(req.params.id);
     if (!movie) {
+      console.log('Movie not found');
       return res.status(404).json({ msg: 'Movie not found' });
     }
     
     // Get showtimes for this movie
     const showtimes = await Showtime.find({ movieId: movie._id })
-      .populate('hallId')
+      .populate('hallId', 'name totalSeats')
       .sort({ startTime: 1 });
     
-    res.json({ ...movie.toObject(), showtimes });
+    console.log(`Found ${showtimes.length} showtimes for movie`);
+    
+    const movieWithShowtimes = {
+      ...movie.toObject(),
+      showtimes
+    };
+    
+    res.json(movieWithShowtimes);
   } catch (error) {
     console.error('Get movie by ID error:', error);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };
 
 exports.getSeats = async (req, res) => {
   const { showtimeId } = req.params;
   try {
+    console.log(`Fetching seats for showtime: ${showtimeId}`);
+    
     const showtime = await Showtime.findById(showtimeId).populate('hallId');
     if (!showtime) {
       return res.status(404).json({ msg: 'Showtime not found' });
@@ -48,6 +61,7 @@ exports.getSeats = async (req, res) => {
     
     // If no seats exist, create them
     if (seats.length === 0) {
+      console.log('Creating seats for hall...');
       const hall = showtime.hallId;
       const seatData = [];
       
@@ -67,11 +81,14 @@ exports.getSeats = async (req, res) => {
       }
       
       seats = await Seat.insertMany(seatData);
+      console.log(`Created ${seats.length} seats`);
     }
 
-    // Update seat booking status for this showtime
-    const bookedSeats = await Booking.find({ showtimeId })
-      .populate('seats');
+    // Check which seats are booked for this showtime
+    const bookedSeats = await Booking.find({ 
+      showtimeId,
+      status: { $ne: 'cancelled' }
+    }).populate('seats');
     
     const bookedSeatIds = bookedSeats.flatMap(booking => 
       booking.seats.map(seat => seat._id.toString())
@@ -82,10 +99,11 @@ exports.getSeats = async (req, res) => {
       isBooked: bookedSeatIds.includes(seat._id.toString())
     }));
 
+    console.log(`Returning ${seatsWithStatus.length} seats, ${bookedSeatIds.length} booked`);
     res.json(seatsWithStatus);
   } catch (error) {
     console.error('Get seats error:', error);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };
 
@@ -97,13 +115,23 @@ exports.bookTicket = async (req, res) => {
   }
 
   try {
+    console.log(`Booking attempt by user ${req.session.user.email} for showtime ${showtimeId}`);
+    
+    // Validate input
+    if (!showtimeId || !seats || !Array.isArray(seats) || seats.length === 0) {
+      return res.status(400).json({ msg: 'Invalid booking data' });
+    }
+
     // Validate showtime exists
-    const showtime = await Showtime.findById(showtimeId);
+    const showtime = await Showtime.findById(showtimeId)
+      .populate('movieId', 'title')
+      .populate('hallId', 'name');
+      
     if (!showtime) {
       return res.status(404).json({ msg: 'Showtime not found' });
     }
 
-    // Check if seats are available
+    // Check if seats exist and are valid
     const seatDocs = await Seat.find({ _id: { $in: seats } });
     if (seatDocs.length !== seats.length) {
       return res.status(400).json({ msg: 'Some seats not found' });
@@ -134,12 +162,16 @@ exports.bookTicket = async (req, res) => {
     });
 
     await booking.save();
-    await booking.populate(['showtimeId', 'seats']);
+    await booking.populate([
+      { path: 'showtimeId', populate: { path: 'movieId hallId' } },
+      { path: 'seats' }
+    ]);
 
+    console.log(`Booking created successfully: ${booking._id}`);
     res.json({ msg: 'Booking successful', booking });
   } catch (error) {
     console.error('Book ticket error:', error);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };
 
@@ -149,6 +181,8 @@ exports.getBookings = async (req, res) => {
   }
 
   try {
+    console.log(`Fetching bookings for user: ${req.session.user.email}`);
+    
     const bookings = await Booking.find({ userId: req.session.user.id })
       .populate({
         path: 'showtimeId',
@@ -159,10 +193,11 @@ exports.getBookings = async (req, res) => {
       .populate('seats')
       .sort({ createdAt: -1 });
 
+    console.log(`Found ${bookings.length} bookings`);
     res.json(bookings);
   } catch (error) {
     console.error('Get bookings error:', error);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };
 
@@ -191,6 +226,6 @@ exports.getBookingById = async (req, res) => {
     res.json(booking);
   } catch (error) {
     console.error('Get booking by ID error:', error);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };

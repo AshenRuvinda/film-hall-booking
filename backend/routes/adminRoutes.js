@@ -1,4 +1,4 @@
-// backend/routes/adminRoutes.js - ENHANCED VERSION
+// backend/routes/adminRoutes.js - COMPLETE FIXED VERSION
 const express = require('express');
 const { 
   addMovie, 
@@ -11,23 +11,27 @@ const {
   getReports 
 } = require('../controllers/adminController');
 const authMiddleware = require('../middleware/auth');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
+// All admin routes require admin role
+router.use(requireRole('admin'));
+
 // Movie management
-router.post('/movies', authMiddleware, addMovie);
-router.put('/movies/:id', authMiddleware, updateMovie);
-router.delete('/movies/:id', authMiddleware, deleteMovie);
+router.post('/movies', addMovie);
+router.put('/movies/:id', updateMovie);
+router.delete('/movies/:id', deleteMovie);
 
 // Hall management
-router.get('/halls', authMiddleware, getHalls);
-router.post('/halls', authMiddleware, addHall);
+router.get('/halls', getHalls);
+router.post('/halls', addHall);
 
 // Showtime management
-router.get('/showtimes', authMiddleware, getShowtimes);
-router.post('/showtimes', authMiddleware, addShowtime);
+router.get('/showtimes', getShowtimes);
+router.post('/showtimes', addShowtime);
 
 // Reports
-router.get('/reports', authMiddleware, getReports);
+router.get('/reports', getReports);
 
 module.exports = router;
