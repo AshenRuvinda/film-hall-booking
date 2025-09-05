@@ -1,15 +1,14 @@
-// frontend/src/pages/user/MyBookings.js - ENHANCED VERSION
-import React, { useEffect, useState, useContext } from 'react';
+// frontend/src/pages/user/MyBookings.js - NEW COMPONENT
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AuthContext } from '../../contexts/AuthContext';
 import api from '../../utils/api';
+import { getSeatDisplayText, getSeatType, formatSeatList, getTotalSeatsByType } from '../../utils/seatUtils';
 
 function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState('all');
-  const { user } = useContext(AuthContext);
+  const [filter, setFilter] = useState('all'); // all, upcoming, past, cancelled
 
   useEffect(() => {
     fetchBookings();
@@ -19,6 +18,7 @@ function MyBookings() {
     try {
       setLoading(true);
       const res = await api.get('/user/bookings');
+      console.log('Fetched bookings:', res.data);
       setBookings(res.data);
     } catch (error) {
       setError('Failed to fetch bookings');
@@ -30,18 +30,14 @@ function MyBookings() {
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }),
-      time: date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const getStatusColor = (status) => {
@@ -59,325 +55,284 @@ function MyBookings() {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        );
-      case 'checked-in':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      case 'cancelled':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        );
-      default:
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-    }
+  const isUpcoming = (showtime) => {
+    return new Date(showtime) > new Date();
+  };
+
+  const isPast = (showtime) => {
+    return new Date(showtime) < new Date();
   };
 
   const filteredBookings = bookings.filter(booking => {
     if (filter === 'all') return true;
-    return booking.status === filter;
+    if (filter === 'upcoming') return booking.status !== 'cancelled' && isUpcoming(booking.showtimeId?.startTime);
+    if (filter === 'past') return isPast(booking.showtimeId?.startTime);
+    if (filter === 'cancelled') return booking.status === 'cancelled';
+    return true;
   });
-
-  const stats = {
-    total: bookings.length,
-    confirmed: bookings.filter(b => b.status === 'confirmed').length,
-    checkedIn: bookings.filter(b => b.status === 'checked-in').length,
-    cancelled: bookings.filter(b => b.status === 'cancelled').length
-  };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your bookings...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Enhanced Banner */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-20"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
-        
-        {/* Decorative elements */}
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
-          <div className="absolute top-32 right-20 w-32 h-32 bg-yellow-300/20 rounded-full blur-2xl"></div>
-          <div className="absolute bottom-10 left-1/4 w-24 h-24 bg-pink-300/20 rounded-full blur-xl"></div>
-        </div>
-        
-        <div className="relative z-10 px-6 py-12">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                🎬 My Bookings
-              </h1>
-              <p className="text-xl text-blue-100 mb-6">
-                Track all your movie experiences in one place
-              </p>
-              {user && (
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 inline-block">
-                  <p className="text-lg text-white">
-                    Welcome back, <span className="font-semibold text-yellow-300">{user.name}!</span>
-                  </p>
-                </div>
-              )}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-8">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">🎫 My Bookings</h1>
+              <p className="text-blue-100">Manage your movie tickets</p>
             </div>
-            
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white">{stats.total}</div>
-                <div className="text-sm text-blue-100">Total Bookings</div>
-              </div>
-              <div className="bg-green-500/20 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white">{stats.confirmed}</div>
-                <div className="text-sm text-green-100">Confirmed</div>
-              </div>
-              <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white">{stats.checkedIn}</div>
-                <div className="text-sm text-blue-100">Attended</div>
-              </div>
-              <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white">{stats.cancelled}</div>
-                <div className="text-sm text-red-100">Cancelled</div>
-              </div>
-            </div>
+            <Link
+              to="/user/dashboard"
+              className="bg-white text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+            >
+              Book New Ticket
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Content Section */}
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Navigation */}
-        <div className="mb-8">
-          <Link 
-            to="/user/dashboard" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Movies
-          </Link>
-        </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
-
         {/* Filter Tabs */}
-        <div className="bg-white rounded-lg shadow-md p-2 mb-6">
-          <div className="flex flex-wrap gap-2">
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
             {[
-              { key: 'all', label: 'All Bookings', count: stats.total },
-              { key: 'confirmed', label: 'Confirmed', count: stats.confirmed },
-              { key: 'checked-in', label: 'Attended', count: stats.checkedIn },
-              { key: 'cancelled', label: 'Cancelled', count: stats.cancelled }
-            ].map(({ key, label, count }) => (
+              { key: 'all', label: 'All Bookings', count: bookings.length },
+              { key: 'upcoming', label: 'Upcoming', count: bookings.filter(b => b.status !== 'cancelled' && isUpcoming(b.showtimeId?.startTime)).length },
+              { key: 'past', label: 'Past', count: bookings.filter(b => isPast(b.showtimeId?.startTime)).length },
+              { key: 'cancelled', label: 'Cancelled', count: bookings.filter(b => b.status === 'cancelled').length }
+            ].map(tab => (
               <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`px-4 py-2 rounded-md font-medium transition-all ${
-                  filter === key
-                    ? 'bg-blue-500 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-100'
+                key={tab.key}
+                onClick={() => setFilter(tab.key)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  filter === tab.key
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                 }`}
               >
-                {label} {count > 0 && <span className="ml-1">({count})</span>}
+                {tab.label} ({tab.count})
               </button>
             ))}
           </div>
         </div>
 
-        {/* Bookings List */}
-        {filteredBookings.length > 0 ? (
-          <div className="space-y-6">
-            {filteredBookings.map((booking) => {
-              const showDateTime = formatDateTime(booking.showtimeId?.startTime);
-              const bookingDate = formatDateTime(booking.createdAt);
-              
-              return (
-                <div key={booking._id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
-                  <div className="md:flex">
-                    {/* Movie Poster */}
-                    <div className="md:w-48 h-48 md:h-auto relative">
-                      {booking.showtimeId?.movieId?.poster ? (
-                        <img
-                          src={booking.showtimeId.movieId.poster}
-                          alt={booking.showtimeId?.movieId?.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = 'https://via.placeholder.com/300x400/6B7280/FFFFFF?text=No+Image';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-                          <svg className="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4M7 4H5C4.44772 4 4 4.44772 4 5V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H17M7 4H17M9 9H15M9 13H15" />
-                          </svg>
-                        </div>
-                      )}
-                      
-                      {/* Status Badge */}
-                      <div className="absolute top-3 right-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
-                          {getStatusIcon(booking.status)}
-                          <span className="ml-1 capitalize">{booking.status}</span>
-                        </span>
-                      </div>
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex">
+              <svg className="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-red-800 font-medium">Error loading bookings</p>
+                <p className="text-red-600 text-sm mt-1">{error}</p>
+                <button
+                  onClick={fetchBookings}
+                  className="text-red-600 hover:text-red-800 text-sm underline mt-2"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {filteredBookings.length === 0 && !loading && !error && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-24 w-24 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No bookings found</h3>
+            <p className="text-gray-600 mb-6">
+              {filter === 'all' 
+                ? "You haven't made any bookings yet." 
+                : `No ${filter} bookings found.`}
+            </p>
+            <Link
+              to="/user/dashboard"
+              className="inline-flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              Book Your First Movie
+            </Link>
+          </div>
+        )}
+
+        {/* Bookings Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredBookings.map((booking) => {
+            const formattedSeats = formatSeatList(booking.seats);
+            const regularSeats = getTotalSeatsByType(booking.seats, 'regular');
+            const boxSeats = getTotalSeatsByType(booking.seats, 'box');
+
+            return (
+              <div key={booking._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                {/* Booking Header */}
+                <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold mb-1">
+                        {booking.showtimeId?.movieId?.title || 'Unknown Movie'}
+                      </h3>
+                      <p className="text-gray-300 text-sm">
+                        {booking.showtimeId?.hallId?.name || 'Unknown Hall'}
+                      </p>
                     </div>
-
-                    {/* Booking Details */}
-                    <div className="flex-1 p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                            {booking.showtimeId?.movieId?.title || 'Unknown Movie'}
-                          </h3>
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            Booked on {bookingDate.date}
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-green-600">${booking.totalPrice}</div>
-                          <div className="text-sm text-gray-500">Total Amount</div>
-                        </div>
-                      </div>
-
-                      {/* Movie Details Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        {/* Showtime Info */}
-                        <div className="bg-blue-50 rounded-lg p-4">
-                          <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Showtime
-                          </h4>
-                          <div className="space-y-2">
-                            <p className="text-sm"><span className="font-medium">Date:</span> {showDateTime.date}</p>
-                            <p className="text-sm"><span className="font-medium">Time:</span> {showDateTime.time}</p>
-                            <p className="text-sm"><span className="font-medium">Hall:</span> {booking.showtimeId?.hallId?.name || 'N/A'}</p>
-                          </div>
-                        </div>
-
-                        {/* Seats Info */}
-                        <div className="bg-green-50 rounded-lg p-4">
-                          <h4 className="font-semibold text-green-900 mb-3 flex items-center">
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Seats
-                          </h4>
-                          <div className="space-y-2">
-                            <p className="text-sm"><span className="font-medium">Count:</span> {booking.seats?.length || 0} seat(s)</p>
-                            <p className="text-sm"><span className="font-medium">Numbers:</span></p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {booking.seats?.map((seat, index) => (
-                                <span key={index} className="bg-green-200 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                                  {seat.seatNumber || seat}
-                                </span>
-                              )) || <span className="text-gray-500">No seats</span>}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Booking Info */}
-                        <div className="bg-purple-50 rounded-lg p-4">
-                          <h4 className="font-semibold text-purple-900 mb-3 flex items-center">
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Booking Details
-                          </h4>
-                          <div className="space-y-2">
-                            <p className="text-sm"><span className="font-medium">ID:</span> <span className="font-mono">{booking._id?.slice(-8)}</span></p>
-                            <p className="text-sm"><span className="font-medium">Price per seat:</span> ${(booking.totalPrice / (booking.seats?.length || 1)).toFixed(2)}</p>
-                            {booking.checkedInAt && (
-                              <p className="text-sm">
-                                <span className="font-medium">Checked in:</span> {formatDateTime(booking.checkedInAt).date} at {formatDateTime(booking.checkedInAt).time}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-                        <Link
-                          to={`/user/booking-summary/${booking._id}`}
-                          className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                        >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          View Details & QR Code
-                        </Link>
-                        
-                        {booking.status === 'confirmed' && new Date(booking.showtimeId?.startTime) > new Date() && (
-                          <button className="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Cancel Booking
-                          </button>
-                        )}
-                      </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
+                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-400">Showtime</p>
+                      <p className="font-medium">
+                        {booking.showtimeId?.startTime 
+                          ? formatDateTime(booking.showtimeId.startTime)
+                          : 'N/A'
+                        }
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Booking Date</p>
+                      <p className="font-medium">{formatDateTime(booking.createdAt)}</p>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-16">
-            <div className="bg-white rounded-lg shadow-md p-8 max-w-md mx-auto">
-              <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7" />
-              </svg>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {filter === 'all' ? 'No bookings yet' : `No ${filter} bookings`}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {filter === 'all' 
-                  ? "You haven't made any movie bookings yet." 
-                  : `You don't have any ${filter} bookings.`
-                }
-              </p>
-              <Link
-                to="/user/dashboard"
-                className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4M7 4H5C4.44772 4 4 4.44772 4 5V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H17M7 4H17M9 9H15M9 13H15" />
-                </svg>
-                Book Your First Movie
-              </Link>
+
+                {/* Booking Details */}
+                <div className="p-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    {/* Seats */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Seats ({formattedSeats.length})</p>
+                      <div className="flex flex-wrap gap-1">
+                        {formattedSeats.slice(0, 4).map((seat, index) => (
+                          <span 
+                            key={seat.id}
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              seat.type === 'box' 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                          >
+                            {seat.displayText}
+                          </span>
+                        ))}
+                        {formattedSeats.length > 4 && (
+                          <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                            +{formattedSeats.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Price */}
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Total Amount</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        ${booking.totalPrice ? booking.totalPrice.toFixed(2) : '0.00'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Seat Type Breakdown */}
+                  {(regularSeats > 0 || boxSeats > 0) && (
+                    <div className="flex gap-4 text-xs text-gray-600 mb-4">
+                      {regularSeats > 0 && (
+                        <span>Regular: {regularSeats}</span>
+                      )}
+                      {boxSeats > 0 && (
+                        <span>Box: {boxSeats} 👑</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Link
+                      to={`/user/booking-summary/${booking._id}`}
+                      className="flex-1 text-center bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors text-sm font-medium"
+                    >
+                      View Details
+                    </Link>
+                    
+                    {booking.qrCode && (
+                      <button
+                        onClick={() => {
+                          // Download QR code or open in new tab
+                          const link = document.createElement('a');
+                          link.href = booking.qrCode;
+                          link.download = `ticket-${booking._id}.png`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm"
+                        title="Download QR Code"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Additional Info */}
+                  {booking.checkedInAt && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-green-600">
+                        ✓ Checked in on {formatDateTime(booking.checkedInAt)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Summary Stats */}
+        {bookings.length > 0 && (
+          <div className="mt-12 bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-semibold mb-4">Booking Summary</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{bookings.length}</div>
+                <div className="text-sm text-gray-600">Total Bookings</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length}
+                </div>
+                <div className="text-sm text-gray-600">Active Bookings</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {bookings.reduce((total, booking) => total + (booking.seats?.length || 0), 0)}
+                </div>
+                <div className="text-sm text-gray-600">Total Seats</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">
+                  ${bookings.reduce((total, booking) => total + (booking.totalPrice || 0), 0).toFixed(2)}
+                </div>
+                <div className="text-sm text-gray-600">Total Spent</div>
+              </div>
             </div>
           </div>
         )}

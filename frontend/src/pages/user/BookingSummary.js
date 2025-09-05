@@ -1,4 +1,4 @@
-// frontend/src/components/booking/BookingSummary.js - ENHANCED VERSION
+// frontend/src/pages/user/BookingSummary.js - FIXED VERSION
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../utils/api';
@@ -19,6 +19,7 @@ function BookingSummary() {
       setLoading(true);
       const res = await api.get(`/user/bookings/${bookingId}`);
       setBooking(res.data);
+      console.log('Booking data:', res.data); // Debug log
     } catch (error) {
       setError('Failed to fetch booking details');
       console.error('Fetch booking details error:', error);
@@ -52,6 +53,33 @@ function BookingSummary() {
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  // Helper function to extract seat display text
+  const getSeatDisplayText = (seat) => {
+    if (typeof seat === 'string') {
+      return seat;
+    }
+    if (typeof seat === 'object' && seat !== null) {
+      return seat.seatId || seat.seatNumber || 'Unknown Seat';
+    }
+    return 'Unknown Seat';
+  };
+
+  // Helper function to get seat type
+  const getSeatType = (seat) => {
+    if (typeof seat === 'object' && seat !== null) {
+      return seat.seatType || 'regular';
+    }
+    return 'regular';
+  };
+
+  // Helper function to get seat price
+  const getSeatPrice = (seat) => {
+    if (typeof seat === 'object' && seat !== null && seat.price) {
+      return seat.price;
+    }
+    return booking.totalPrice / (booking.seats?.length || 1);
   };
 
   const handleDownloadPDF = () => {
@@ -200,7 +228,7 @@ function BookingSummary() {
                   </div>
                 </div>
 
-                {/* Seat Information */}
+                {/* Seat Information - FIXED SECTION */}
                 <div className="bg-green-50 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,17 +245,54 @@ function BookingSummary() {
                     <div>
                       <span className="text-gray-600 block mb-2">Seat Numbers:</span>
                       <div className="flex flex-wrap gap-2">
-                        {booking.seats?.map((seat, index) => (
-                          <span key={index} className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                            {seat.seatNumber || seat}
-                          </span>
-                        )) || <span className="text-gray-500">No seats assigned</span>}
+                        {booking.seats && booking.seats.length > 0 ? (
+                          booking.seats.map((seat, index) => {
+                            const seatText = getSeatDisplayText(seat);
+                            const seatType = getSeatType(seat);
+                            return (
+                              <span 
+                                key={index} 
+                                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                  seatType === 'box' 
+                                    ? 'bg-purple-200 text-purple-800' 
+                                    : 'bg-green-200 text-green-800'
+                                }`}
+                                title={seatType === 'box' ? 'Box Seat' : 'Regular Seat'}
+                              >
+                                {seatText}
+                                {seatType === 'box' && ' 👑'}
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span className="text-gray-500">No seats assigned</span>
+                        )}
                       </div>
                     </div>
+                    
+                    {/* Show seat breakdown by type if there are different types */}
+                    {booking.seats && booking.seats.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-green-200">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Regular Seats:</span>
+                            <span className="ml-2 font-medium">
+                              {booking.seats.filter(seat => getSeatType(seat) === 'regular').length}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Box Seats:</span>
+                            <span className="ml-2 font-medium">
+                              {booking.seats.filter(seat => getSeatType(seat) === 'box').length}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Payment Information */}
+                {/* Payment Information - ENHANCED */}
                 <div className="bg-purple-50 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-purple-900 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,18 +301,28 @@ function BookingSummary() {
                     Payment Details
                   </h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Price per Seat:</span>
-                      <span className="font-medium">${(booking.totalPrice / (booking.seats?.length || 1)).toFixed(2)}</span>
-                    </div>
+                    {formattedSeats && formattedSeats.length > 0 && (
+                      <div className="space-y-2">
+                        {formattedSeats.map((seat) => (
+                          <div key={seat.id} className="flex justify-between text-sm">
+                            <span className="text-gray-600">
+                              {seat.displayText} ({seat.type})
+                            </span>
+                            <span className="font-medium">${seat.price.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between">
                       <span className="text-gray-600">Number of Seats:</span>
-                      <span className="font-medium">{booking.seats?.length || 0}</span>
+                      <span className="font-medium">{formattedSeats?.length || 0}</span>
                     </div>
+                    
                     <div className="border-t pt-2">
                       <div className="flex justify-between text-lg font-bold">
                         <span className="text-gray-900">Total Amount:</span>
-                        <span className="text-purple-600">${booking.totalPrice}</span>
+                        <span className="text-purple-600">${booking.totalPrice.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
