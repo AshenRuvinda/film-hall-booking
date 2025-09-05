@@ -82,6 +82,20 @@ function BookingSummary() {
     return booking.totalPrice / (booking.seats?.length || 1);
   };
 
+  // Format seats data for display - ADDED THIS FUNCTION
+  const getFormattedSeats = () => {
+    if (!booking.seats || booking.seats.length === 0) {
+      return [];
+    }
+
+    return booking.seats.map((seat, index) => ({
+      id: index,
+      displayText: getSeatDisplayText(seat),
+      type: getSeatType(seat),
+      price: getSeatPrice(seat)
+    }));
+  };
+
   const handleDownloadPDF = () => {
     if (booking) {
       generatePDF(booking);
@@ -117,6 +131,9 @@ function BookingSummary() {
       </div>
     );
   }
+
+  // Get formatted seats data - ADDED THIS LINE
+  const formattedSeats = getFormattedSeats();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">

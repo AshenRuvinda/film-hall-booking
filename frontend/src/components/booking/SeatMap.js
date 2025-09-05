@@ -51,7 +51,6 @@ function SeatMap({ hall, bookedSeats = [], onSeatSelect, selectedSeats = [] }) {
 
   const renderSeatBlock = (block, blockIndex) => {
     const seats = [];
-    let seatCounter = 1;
 
     for (let row = 0; row < block.rows; row++) {
       const rowLetter = String.fromCharCode(65 + row); // A, B, C, etc.
@@ -79,7 +78,6 @@ function SeatMap({ hall, bookedSeats = [], onSeatSelect, selectedSeats = [] }) {
             )}
           </button>
         );
-        seatCounter++;
       }
 
       seats.push(
@@ -98,7 +96,7 @@ function SeatMap({ hall, bookedSeats = [], onSeatSelect, selectedSeats = [] }) {
     }
 
     return (
-      <div key={blockIndex} className="mb-6">
+      <div key={blockIndex} className="flex flex-col items-center">
         <div className="text-center mb-2">
           <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
             {block.name}
@@ -107,6 +105,46 @@ function SeatMap({ hall, bookedSeats = [], onSeatSelect, selectedSeats = [] }) {
         <div className="flex flex-col items-center">
           {seats}
         </div>
+      </div>
+    );
+  };
+
+  const renderSeatBlocksLayout = () => {
+    if (!hall.seatBlocks || hall.seatBlocks.length === 0) return null;
+
+    const blocks = hall.seatBlocks;
+    const numBlocks = blocks.length;
+
+    if (numBlocks === 1) {
+      // Single block centered
+      return (
+        <div className="flex justify-center">
+          {renderSeatBlock(blocks[0], 0)}
+        </div>
+      );
+    }
+
+    // Arrange blocks in rows of 2 with center aisle
+    // A | B
+    // C | D  
+    // E | F
+    const rows = [];
+    
+    for (let i = 0; i < blocks.length; i += 2) {
+      const leftBlock = blocks[i];
+      const rightBlock = blocks[i + 1];
+      
+      rows.push(
+        <div key={`row-${i}`} className="flex justify-center items-start gap-16">
+          {renderSeatBlock(leftBlock, i)}
+          {rightBlock && renderSeatBlock(rightBlock, i + 1)}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-12">
+        {rows}
       </div>
     );
   };
@@ -172,22 +210,20 @@ function SeatMap({ hall, bookedSeats = [], onSeatSelect, selectedSeats = [] }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       {/* Screen */}
       <div className="mb-8">
         <div className="bg-gradient-to-r from-gray-800 to-gray-600 h-3 rounded-lg shadow-lg mb-2"></div>
         <div className="text-center text-sm text-gray-600 font-medium">SCREEN</div>
       </div>
 
-      {/* Box Seats (if available) */}
-      {renderBoxSeats()}
-
-      {/* Regular Seat Blocks */}
-      <div className="space-y-6">
-        {hall.seatBlocks && hall.seatBlocks.map((block, index) => 
-          renderSeatBlock(block, index)
-        )}
+      {/* Regular Seat Blocks with Smart Layout */}
+      <div className="mb-8">
+        {renderSeatBlocksLayout()}
       </div>
+
+      {/* Box Seats (at the back) */}
+      {renderBoxSeats()}
 
       {/* Legend */}
       <div className="mt-8 pt-6 border-t border-gray-200">
