@@ -1,4 +1,3 @@
-// backend/server.js - COMPLETE FIXED VERSION
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
@@ -11,6 +10,8 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const operatorRoutes = require('./routes/operatorRoutes');
+const movieRoutes = require('./routes/movieRoutes');        // NEW
+const showtimeRoutes = require('./routes/showtimeRoutes');  // NEW
 
 // Load environment variables
 dotenv.config();
@@ -76,7 +77,9 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Routes
+// Routes - ORDER MATTERS! More specific routes should come first
+app.use('/api/movies', movieRoutes);        // NEW - Handles /api/movies/*
+app.use('/api/showtimes', showtimeRoutes);  // NEW - Handles /api/showtimes/*
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
@@ -88,7 +91,15 @@ app.use('/api/*', (req, res) => {
   res.status(404).json({ 
     msg: 'Route not found',
     path: req.path,
-    method: req.method
+    method: req.method,
+    availableRoutes: [
+      'GET /api/movies',
+      'GET /api/movies/:id', 
+      'GET /api/showtimes/movie/:movieId',
+      'GET /api/auth/check',
+      'POST /api/auth/login',
+      'POST /api/auth/register'
+    ]
   });
 });
 
@@ -108,4 +119,11 @@ app.listen(PORT, () => {
   console.log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
   console.log(`🔗 Backend URL: http://localhost:${PORT}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('📋 Available routes:');
+  console.log('   GET /api/movies');
+  console.log('   GET /api/movies/:id');
+  console.log('   GET /api/showtimes/movie/:movieId');
+  console.log('   GET /api/auth/check');
+  console.log('   POST /api/auth/login');
+  console.log('   POST /api/auth/register');
 });
