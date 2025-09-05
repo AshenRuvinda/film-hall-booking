@@ -1,4 +1,4 @@
-// frontend/src/App.js - ENHANCED WITH SUPPORT ROUTES
+// frontend/src/App.js - ENHANCED WITH SUPPORT ROUTES AND ABOUT US
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/common/Layout';
@@ -16,6 +16,7 @@ import MovieDetail from './pages/user/MovieDetail';
 import SeatSelection from './pages/user/SeatSelection';
 import BookingSummary from './pages/user/BookingSummary';
 import MyBookings from './pages/user/MyBookings';
+import AboutUs from './pages/user/AboutUs';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -74,6 +75,11 @@ function App() {
             <Route path="/user/bookings" element={
               <ProtectedRoute requiredRole="user">
                 <MyBookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/about" element={
+              <ProtectedRoute requiredRole="user">
+                <AboutUs />
               </ProtectedRoute>
             } />
             

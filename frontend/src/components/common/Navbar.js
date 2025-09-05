@@ -1,4 +1,4 @@
-// frontend/src/components/common/Navbar.js - COMPLETE NAVBAR COMPONENT
+// frontend/src/components/common/Navbar.js - COMPLETE NAVBAR COMPONENT WITH ABOUT US
 import React, { useContext, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -14,7 +14,8 @@ import {
   Menu, 
   X,
   Ticket,
-  Home
+  Home,
+  Info
 } from 'lucide-react';
 
 function Navbar() {
@@ -67,6 +68,7 @@ function Navbar() {
           <>
             <NavLink to="/user/dashboard" icon={Film}>Movies</NavLink>
             <NavLink to="/user/bookings" icon={Ticket}>My Bookings</NavLink>
+            <NavLink to="/user/about" icon={Info}>About Us</NavLink>
           </>
         );
       case 'admin':
