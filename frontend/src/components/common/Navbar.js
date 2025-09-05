@@ -108,7 +108,7 @@ function Navbar() {
               <Film size={24} className="text-white" />
             </div>
             <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              Ticket.lk
+              Ticket.LK
             </span>
           </Link>
           
