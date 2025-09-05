@@ -1,4 +1,4 @@
-// frontend/src/pages/operator/ScanTicket.js - ENHANCED VERSION
+// frontend/src/pages/operator/ScanTicket.js - FIXED SEAT DISPLAY VERSION
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../utils/api';
@@ -36,6 +36,23 @@ function ScanTicket() {
     } catch (error) {
       console.log('Audio context not supported');
     }
+  };
+
+  // Fixed function to properly format seat information
+  const formatSeats = (seats) => {
+    if (!seats || !Array.isArray(seats)) return 'N/A';
+    
+    return seats.map(seat => {
+      // Handle different seat object formats
+      if (typeof seat === 'object') {
+        // Try different possible seat identifier properties
+        return seat.seatId || seat.seatNumber || seat.id || 'Unknown Seat';
+      } else if (typeof seat === 'string') {
+        return seat;
+      } else {
+        return 'Unknown Seat';
+      }
+    }).join(', ');
   };
 
   const handleScan = async (qrData) => {
@@ -228,6 +245,14 @@ function ScanTicket() {
                 <div className="space-y-2 text-sm">
                   <p><span className="font-medium">Booking ID:</span> {scanResult._id}</p>
                   
+                  {/* Customer Information */}
+                  {scanResult.userId && (
+                    <>
+                      <p><span className="font-medium">Customer:</span> {scanResult.userId.name}</p>
+                      <p><span className="font-medium">Email:</span> {scanResult.userId.email}</p>
+                    </>
+                  )}
+                  
                   {scanResult.showtimeId && (
                     <>
                       {scanResult.showtimeId.movieId && (
@@ -240,16 +265,21 @@ function ScanTicket() {
                     </>
                   )}
                   
-                  {scanResult.seats && (
-                    <p><span className="font-medium">Seats:</span> {
-                      Array.isArray(scanResult.seats) 
-                        ? scanResult.seats.map(seat => seat.seatNumber || seat).join(', ')
-                        : scanResult.seats
-                    }</p>
+                  {/* Fixed seat display */}
+                  <p><span className="font-medium">Seats:</span> {formatSeats(scanResult.seats)}</p>
+                  
+                  {/* Additional seat details */}
+                  {scanResult.seats && Array.isArray(scanResult.seats) && (
+                    <p><span className="font-medium">Number of Seats:</span> {scanResult.seats.length}</p>
                   )}
                   
                   <p><span className="font-medium">Total Price:</span> ${scanResult.totalPrice}</p>
                   <p><span className="font-medium">Booking Date:</span> {formatDateTime(scanResult.createdAt)}</p>
+                  
+                  {/* Check-in information */}
+                  {scanResult.checkedInAt && (
+                    <p><span className="font-medium">Checked In:</span> {formatDateTime(scanResult.checkedInAt)}</p>
+                  )}
                 </div>
                 
                 {scanResult.status === 'confirmed' && (
@@ -268,6 +298,11 @@ function ScanTicket() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p className="text-green-700 font-medium">Customer Already Checked In</p>
+                    {scanResult.checkedInAt && (
+                      <p className="text-green-600 text-sm mt-1">
+                        Checked in on {formatDateTime(scanResult.checkedInAt)}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
