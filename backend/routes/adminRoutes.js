@@ -1,4 +1,4 @@
-// backend/routes/adminRoutes.js - COMPLETE FIXED VERSION
+// backend/routes/adminRoutes.js - ENHANCED WITH HALL MANAGEMENT
 const express = require('express');
 const { 
   addMovie, 
@@ -6,6 +6,8 @@ const {
   deleteMovie, 
   getHalls,
   addHall, 
+  updateHall,
+  deleteHall,
   getShowtimes,
   addShowtime, 
   getReports 
@@ -23,9 +25,11 @@ router.post('/movies', addMovie);
 router.put('/movies/:id', updateMovie);
 router.delete('/movies/:id', deleteMovie);
 
-// Hall management
+// Enhanced Hall management
 router.get('/halls', getHalls);
 router.post('/halls', addHall);
+router.put('/halls/:id', updateHall);
+router.delete('/halls/:id', deleteHall);
 
 // Showtime management
 router.get('/showtimes', getShowtimes);
