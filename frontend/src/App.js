@@ -1,4 +1,4 @@
-// frontend/src/App.js - ENHANCED WITH PROTECTED ROUTES
+// frontend/src/App.js - ENHANCED WITH BETTER ROUTE ORGANIZATION
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/common/Layout';
@@ -28,19 +28,23 @@ import Reports from './pages/admin/Reports';
 import OperatorDashboard from './pages/operator/Dashboard';
 import ScanTicket from './pages/operator/ScanTicket';
 
+// Error pages
+import NotFound from './pages/common/NotFound';
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Layout>
           <Routes>
-            {/* Public routes */}
+            {/* Public/Auth routes - No navbar */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<UserLogin />} />
             <Route path="/register" element={<UserRegister />} />
             <Route path="/staff/login" element={<StaffLogin />} />
             <Route path="/staff/register" element={<StaffRegister />} />
             
-            {/* User routes */}
+            {/* User routes - With navbar */}
             <Route path="/user/dashboard" element={
               <ProtectedRoute requiredRole="user">
                 <UserDashboard />
@@ -67,7 +71,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Admin routes */}
+            {/* Admin routes - With navbar */}
             <Route path="/admin/dashboard" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminDashboard />
@@ -94,7 +98,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Operator routes */}
+            {/* Operator routes - With navbar */}
             <Route path="/operator/dashboard" element={
               <ProtectedRoute requiredRole="operator">
                 <OperatorDashboard />
@@ -106,8 +110,8 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Default route */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* 404 Not Found - With navbar */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
       </AuthProvider>
