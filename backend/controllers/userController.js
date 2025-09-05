@@ -1,4 +1,4 @@
-// backend/controllers/userController.js - COMPLETE UPDATED VERSION
+// backend/controllers/userController.js - FIXED bookTicket function
 const Movie = require('../models/Movie');
 const Booking = require('../models/Booking');
 const Seat = require('../models/Seat');
@@ -46,7 +46,7 @@ exports.getMovieById = async (req, res) => {
   }
 };
 
-// NEW: Get showtime details with hall and movie info
+// Get showtime details with hall and movie info
 exports.getShowtimeById = async (req, res) => {
   try {
     console.log(`Fetching showtime with ID: ${req.params.id}`);
@@ -78,7 +78,7 @@ exports.getShowtimeById = async (req, res) => {
   }
 };
 
-// NEW: Get booked seats for a specific showtime
+// Get booked seats for a specific showtime
 exports.getShowtimeSeats = async (req, res) => {
   try {
     const showtimeId = req.params.id;
@@ -87,18 +87,21 @@ exports.getShowtimeSeats = async (req, res) => {
     // Find all confirmed bookings for this showtime
     const bookings = await Booking.find({ 
       showtimeId,
-      status: { $in: ['confirmed', 'pending'] }
-    }).populate('seats');
+      status: { $in: ['confirmed', 'pending', 'checked-in'] }
+    });
 
     // Extract all booked seat IDs
     const bookedSeats = [];
     bookings.forEach(booking => {
       if (booking.seats && Array.isArray(booking.seats)) {
         booking.seats.forEach(seat => {
-          // Handle both seat objects and seat IDs
-          if (typeof seat === 'object' && seat.seatNumber) {
-            // Create seat ID format that matches SeatMap component
-            bookedSeats.push(seat.seatNumber);
+          // Handle different seat data formats
+          if (typeof seat === 'object') {
+            if (seat.seatId) {
+              bookedSeats.push(seat.seatId);
+            } else if (seat.seatNumber) {
+              bookedSeats.push(seat.seatNumber);
+            }
           } else if (typeof seat === 'string') {
             bookedSeats.push(seat);
           }
@@ -175,7 +178,7 @@ exports.getSeats = async (req, res) => {
   }
 };
 
-// UPDATED: Enhanced bookTicket function to handle new seat selection format
+// FIXED: Enhanced bookTicket function
 exports.bookTicket = async (req, res) => {
   const { showtimeId, seats } = req.body;
   
@@ -185,7 +188,7 @@ exports.bookTicket = async (req, res) => {
 
   try {
     console.log(`Booking attempt by user ${req.session.user.email} for showtime ${showtimeId}`);
-    console.log('Seats data:', seats);
+    console.log('Seats data received:', JSON.stringify(seats, null, 2));
     
     // Validate input
     if (!showtimeId || !seats || !Array.isArray(seats) || seats.length === 0) {
@@ -201,84 +204,147 @@ exports.bookTicket = async (req, res) => {
       return res.status(404).json({ msg: 'Showtime not found' });
     }
 
-    // Handle new seat format from SeatMap component
-    let seatIds = [];
+    // Process seats data and calculate total price
+    let seatData = [];
     let totalPrice = 0;
 
-    if (seats[0] && typeof seats[0] === 'object' && seats[0].id) {
-      // New format: [{ id: 'Block 1-A1', type: 'regular', price: 10 }]
-      seats.forEach(seat => {
-        seatIds.push(seat.id);
-        totalPrice += seat.price;
-      });
-    } else {
-      // Old format: array of seat IDs
-      seatIds = seats;
-      totalPrice = seats.length * 10; // Default price
+    // Handle different seat formats
+    for (const seat of seats) {
+      let seatInfo;
+      
+      if (typeof seat === 'object' && seat.seatId) {
+        // Format: { seatId: 'Block 1-A1', seatType: 'regular', price: 10 }
+        seatInfo = {
+          seatId: seat.seatId,
+          seatType: seat.seatType || 'regular',
+          price: seat.price || 10
+        };
+      } else if (typeof seat === 'object' && seat.id) {
+        // Format: { id: 'Block 1-A1', type: 'regular', price: 10 }
+        seatInfo = {
+          seatId: seat.id,
+          seatType: seat.type || 'regular',
+          price: seat.price || 10
+        };
+      } else if (typeof seat === 'string') {
+        // Format: 'Block 1-A1'
+        seatInfo = {
+          seatId: seat,
+          seatType: 'regular',
+          price: 10
+        };
+      } else {
+        console.error('Unrecognized seat format:', seat);
+        continue;
+      }
+      
+      seatData.push(seatInfo);
+      totalPrice += seatInfo.price;
     }
+
+    console.log('Processed seat data:', JSON.stringify(seatData, null, 2));
+    console.log('Total price:', totalPrice);
 
     // Check if any seats are already booked for this showtime
     const existingBookings = await Booking.find({
       showtimeId,
-      status: { $ne: 'cancelled' }
+      status: { $in: ['confirmed', 'pending', 'checked-in'] }
     });
 
     const bookedSeatIds = [];
     existingBookings.forEach(booking => {
       if (booking.seats) {
-        booking.seats.forEach(seat => {
-          if (typeof seat === 'object' && seat.seatNumber) {
-            bookedSeatIds.push(seat.seatNumber);
-          } else {
-            bookedSeatIds.push(seat);
+        booking.seats.forEach(bookedSeat => {
+          if (typeof bookedSeat === 'object' && bookedSeat.seatId) {
+            bookedSeatIds.push(bookedSeat.seatId);
+          } else if (typeof bookedSeat === 'object' && bookedSeat.seatNumber) {
+            bookedSeatIds.push(bookedSeat.seatNumber);
+          } else if (typeof bookedSeat === 'string') {
+            bookedSeatIds.push(bookedSeat);
           }
         });
       }
     });
 
-    const conflictingSeats = seatIds.filter(seatId => bookedSeatIds.includes(seatId));
+    console.log('Currently booked seats:', bookedSeatIds);
+
+    // Check for conflicts
+    const requestedSeatIds = seatData.map(s => s.seatId);
+    const conflictingSeats = requestedSeatIds.filter(seatId => bookedSeatIds.includes(seatId));
+    
     if (conflictingSeats.length > 0) {
       return res.status(400).json({ 
         msg: `Seats ${conflictingSeats.join(', ')} are already booked` 
       });
     }
 
-    // Create QR code
-    const qrData = `booking:${showtimeId}:${seatIds.join(',')}`;
-    const qrCode = await QRCode.toDataURL(qrData);
+    // Create QR code data
+    const qrData = `booking:${showtimeId}:${requestedSeatIds.join(',')}`;
+    console.log('QR data:', qrData);
+    
+    let qrCode;
+    try {
+      qrCode = await QRCode.toDataURL(qrData);
+    } catch (qrError) {
+      console.error('QR code generation error:', qrError);
+      // Continue without QR code if generation fails
+      qrCode = null;
+    }
 
-    // Create booking with seat information
-    const bookingSeats = seats[0] && typeof seats[0] === 'object' && seats[0].id 
-      ? seats.map(seat => ({
-          seatId: seat.id,
-          seatType: seat.type,
-          price: seat.price
-        }))
-      : seatIds.map(seatId => ({
-          seatId,
-          seatType: 'regular',
-          price: 10
-        }));
-
+    // Create booking with proper seat structure
     const booking = new Booking({
       userId: req.session.user.id,
       showtimeId,
-      seats: bookingSeats,
+      seats: seatData, // Store as array of objects with seatId, seatType, price
       totalPrice,
       qrCode,
       status: 'confirmed'
     });
 
+    console.log('Creating booking:', {
+      userId: req.session.user.id,
+      showtimeId,
+      seats: seatData,
+      totalPrice,
+      status: 'confirmed'
+    });
+
     await booking.save();
+    
+    // Populate the booking with related data for response
     await booking.populate([
-      { path: 'showtimeId', populate: { path: 'movieId hallId' } }
+      { 
+        path: 'showtimeId', 
+        populate: [
+          { path: 'movieId', select: 'title genre duration poster' },
+          { path: 'hallId', select: 'name location totalSeats' }
+        ]
+      }
     ]);
 
     console.log(`Booking created successfully: ${booking._id}`);
-    res.json({ msg: 'Booking successful', booking });
+    
+    res.json({ 
+      msg: 'Booking successful', 
+      booking: {
+        _id: booking._id,
+        userId: booking.userId,
+        showtimeId: booking.showtimeId,
+        seats: booking.seats,
+        totalPrice: booking.totalPrice,
+        status: booking.status,
+        qrCode: booking.qrCode,
+        createdAt: booking.createdAt
+      }
+    });
+    
   } catch (error) {
     console.error('Book ticket error:', error);
-    res.status(500).json({ msg: 'Server error', error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      msg: 'Booking failed due to server error', 
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 };
 

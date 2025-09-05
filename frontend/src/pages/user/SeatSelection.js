@@ -25,26 +25,32 @@ function SeatSelection() {
       setLoading(true);
       setError('');
       
+      console.log('Fetching showtime data for ID:', showtimeId);
+      
       // Fetch showtime details with populated hall and movie data
       const showtimeRes = await api.get(`/user/showtimes/${showtimeId}`);
       const showtimeData = showtimeRes.data;
+      
+      console.log('Showtime data received:', showtimeData);
       
       setShowtime(showtimeData);
       setHall(showtimeData.hall);
       
       // Fetch booked seats for this showtime
       const seatsRes = await api.get(`/user/showtimes/${showtimeId}/seats`);
+      console.log('Booked seats received:', seatsRes.data.bookedSeats);
       setBookedSeats(seatsRes.data.bookedSeats || []);
       
     } catch (error) {
-      setError(error.response?.data?.msg || 'Failed to fetch showtime data');
       console.error('Fetch showtime data error:', error);
+      setError(error.response?.data?.msg || 'Failed to fetch showtime data');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSeatSelect = (seats) => {
+    console.log('Seats selected:', seats);
     setSelectedSeats(seats);
     setError('');
   };
@@ -59,6 +65,10 @@ function SeatSelection() {
     setError('');
 
     try {
+      console.log('Starting booking process...');
+      console.log('Selected seats for booking:', selectedSeats);
+      
+      // Format the booking data to match what the backend expects
       const bookingData = {
         showtimeId,
         seats: selectedSeats.map(seat => ({
@@ -68,14 +78,31 @@ function SeatSelection() {
         }))
       };
 
+      console.log('Booking data being sent:', bookingData);
+
       const res = await api.post('/user/bookings', bookingData);
       
-      // Navigate to booking confirmation or payment page
-      navigate(`/user/booking-confirmation/${res.data.booking._id}`);
+      console.log('Booking response:', res.data);
+      
+      if (res.data.booking && res.data.booking._id) {
+        // Navigate to booking summary page with booking data
+        navigate(`/user/booking-summary/${res.data.booking._id}`, {
+          state: { bookingData: res.data.booking }
+        });
+      } else {
+        throw new Error('Invalid booking response format');
+      }
       
     } catch (error) {
-      setError(error.response?.data?.msg || 'Booking failed. Please try again.');
       console.error('Booking error:', error);
+      console.error('Error response:', error.response?.data);
+      
+      const errorMessage = error.response?.data?.msg || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Booking failed. Please try again.';
+      
+      setError(errorMessage);
     } finally {
       setBooking(false);
     }
@@ -313,7 +340,7 @@ function SeatSelection() {
                     <>
                       <CreditCard className="w-5 h-5" />
                       {selectedSeats.length > 0 
-                        ? `Book ${selectedSeats.length} Seat${selectedSeats.length !== 1 ? 's' : ''} - $${calculateTotal()}`
+                        ? `Book ${selectedSeats.length} Seat${selectedSeats.length !== 1 ? 's' : ''} - ${calculateTotal()}`
                         : 'Select Seats to Continue'
                       }
                     </>
