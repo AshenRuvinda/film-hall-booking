@@ -1,4 +1,4 @@
-// backend/controllers/userController.js - COMPLETE FIXED VERSION
+// backend/controllers/userController.js - COMPLETE UPDATED VERSION
 const Movie = require('../models/Movie');
 const Booking = require('../models/Booking');
 const Seat = require('../models/Seat');
@@ -42,6 +42,74 @@ exports.getMovieById = async (req, res) => {
     res.json(movieWithShowtimes);
   } catch (error) {
     console.error('Get movie by ID error:', error);
+    res.status(500).json({ msg: 'Server error', error: error.message });
+  }
+};
+
+// NEW: Get showtime details with hall and movie info
+exports.getShowtimeById = async (req, res) => {
+  try {
+    console.log(`Fetching showtime with ID: ${req.params.id}`);
+    
+    const showtime = await Showtime.findById(req.params.id)
+      .populate('movieId')
+      .populate('hallId');
+    
+    if (!showtime) {
+      console.log('Showtime not found');
+      return res.status(404).json({ msg: 'Showtime not found' });
+    }
+
+    // Format the response to match what the frontend expects
+    const formattedShowtime = {
+      _id: showtime._id,
+      startTime: showtime.startTime,
+      endTime: showtime.endTime,
+      price: showtime.price || 10,
+      movie: showtime.movieId,
+      hall: showtime.hallId
+    };
+
+    console.log('Showtime found:', formattedShowtime);
+    res.json(formattedShowtime);
+  } catch (error) {
+    console.error('Get showtime error:', error);
+    res.status(500).json({ msg: 'Server error', error: error.message });
+  }
+};
+
+// NEW: Get booked seats for a specific showtime
+exports.getShowtimeSeats = async (req, res) => {
+  try {
+    const showtimeId = req.params.id;
+    console.log(`Fetching booked seats for showtime: ${showtimeId}`);
+    
+    // Find all confirmed bookings for this showtime
+    const bookings = await Booking.find({ 
+      showtimeId,
+      status: { $in: ['confirmed', 'pending'] }
+    }).populate('seats');
+
+    // Extract all booked seat IDs
+    const bookedSeats = [];
+    bookings.forEach(booking => {
+      if (booking.seats && Array.isArray(booking.seats)) {
+        booking.seats.forEach(seat => {
+          // Handle both seat objects and seat IDs
+          if (typeof seat === 'object' && seat.seatNumber) {
+            // Create seat ID format that matches SeatMap component
+            bookedSeats.push(seat.seatNumber);
+          } else if (typeof seat === 'string') {
+            bookedSeats.push(seat);
+          }
+        });
+      }
+    });
+
+    console.log(`Found ${bookedSeats.length} booked seats`);
+    res.json({ bookedSeats });
+  } catch (error) {
+    console.error('Get booked seats error:', error);
     res.status(500).json({ msg: 'Server error', error: error.message });
   }
 };
@@ -107,6 +175,7 @@ exports.getSeats = async (req, res) => {
   }
 };
 
+// UPDATED: Enhanced bookTicket function to handle new seat selection format
 exports.bookTicket = async (req, res) => {
   const { showtimeId, seats } = req.body;
   
@@ -116,6 +185,7 @@ exports.bookTicket = async (req, res) => {
 
   try {
     console.log(`Booking attempt by user ${req.session.user.email} for showtime ${showtimeId}`);
+    console.log('Seats data:', seats);
     
     // Validate input
     if (!showtimeId || !seats || !Array.isArray(seats) || seats.length === 0) {
@@ -131,31 +201,69 @@ exports.bookTicket = async (req, res) => {
       return res.status(404).json({ msg: 'Showtime not found' });
     }
 
-    // Check if seats exist and are valid
-    const seatDocs = await Seat.find({ _id: { $in: seats } });
-    if (seatDocs.length !== seats.length) {
-      return res.status(400).json({ msg: 'Some seats not found' });
+    // Handle new seat format from SeatMap component
+    let seatIds = [];
+    let totalPrice = 0;
+
+    if (seats[0] && typeof seats[0] === 'object' && seats[0].id) {
+      // New format: [{ id: 'Block 1-A1', type: 'regular', price: 10 }]
+      seats.forEach(seat => {
+        seatIds.push(seat.id);
+        totalPrice += seat.price;
+      });
+    } else {
+      // Old format: array of seat IDs
+      seatIds = seats;
+      totalPrice = seats.length * 10; // Default price
     }
 
     // Check if any seats are already booked for this showtime
     const existingBookings = await Booking.find({
       showtimeId,
-      seats: { $in: seats },
       status: { $ne: 'cancelled' }
     });
 
-    if (existingBookings.length > 0) {
-      return res.status(400).json({ msg: 'Some seats are already booked' });
+    const bookedSeatIds = [];
+    existingBookings.forEach(booking => {
+      if (booking.seats) {
+        booking.seats.forEach(seat => {
+          if (typeof seat === 'object' && seat.seatNumber) {
+            bookedSeatIds.push(seat.seatNumber);
+          } else {
+            bookedSeatIds.push(seat);
+          }
+        });
+      }
+    });
+
+    const conflictingSeats = seatIds.filter(seatId => bookedSeatIds.includes(seatId));
+    if (conflictingSeats.length > 0) {
+      return res.status(400).json({ 
+        msg: `Seats ${conflictingSeats.join(', ')} are already booked` 
+      });
     }
 
-    const totalPrice = seats.length * 10; // $10 per seat
-    const qrData = `booking:${showtimeId}:${seats.join(',')}`;
+    // Create QR code
+    const qrData = `booking:${showtimeId}:${seatIds.join(',')}`;
     const qrCode = await QRCode.toDataURL(qrData);
+
+    // Create booking with seat information
+    const bookingSeats = seats[0] && typeof seats[0] === 'object' && seats[0].id 
+      ? seats.map(seat => ({
+          seatId: seat.id,
+          seatType: seat.type,
+          price: seat.price
+        }))
+      : seatIds.map(seatId => ({
+          seatId,
+          seatType: 'regular',
+          price: 10
+        }));
 
     const booking = new Booking({
       userId: req.session.user.id,
       showtimeId,
-      seats,
+      seats: bookingSeats,
       totalPrice,
       qrCode,
       status: 'confirmed'
@@ -163,8 +271,7 @@ exports.bookTicket = async (req, res) => {
 
     await booking.save();
     await booking.populate([
-      { path: 'showtimeId', populate: { path: 'movieId hallId' } },
-      { path: 'seats' }
+      { path: 'showtimeId', populate: { path: 'movieId hallId' } }
     ]);
 
     console.log(`Booking created successfully: ${booking._id}`);
@@ -190,7 +297,6 @@ exports.getBookings = async (req, res) => {
           path: 'movieId hallId'
         }
       })
-      .populate('seats')
       .sort({ createdAt: -1 });
 
     console.log(`Found ${bookings.length} bookings`);
@@ -216,8 +322,7 @@ exports.getBookingById = async (req, res) => {
       populate: {
         path: 'movieId hallId'
       }
-    })
-    .populate('seats');
+    });
 
     if (!booking) {
       return res.status(404).json({ msg: 'Booking not found' });
