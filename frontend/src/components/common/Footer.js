@@ -47,15 +47,7 @@ function Footer() {
               <Link to="/user/bookings" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 My Bookings
               </Link>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
-                Coming Soon
-              </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
-                Theaters
-              </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
-                Gift Cards
-              </a>
+              
             </div>
           </div>
 
@@ -63,9 +55,7 @@ function Footer() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Support</h3>
             <div className="space-y-2">
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
-                Help Center
-              </a>
+              
               <a href="/support/terms" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Terms & Conditions
               </a>
@@ -126,7 +116,7 @@ function Footer() {
         <div className="border-t border-gray-700 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-gray-400 text-sm">
-              © 2024 Ticket.lk. All rights reserved. | Made with ❤️ in Sri Lanka
+              © 2025 Ticket.LK. All rights reserved. | Project Ticket.LK
             </div>
             <div className="flex items-center space-x-6 text-sm text-gray-400">
               <a href="#" className="hover:text-white transition-colors">
