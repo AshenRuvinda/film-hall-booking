@@ -32,7 +32,7 @@ function UserDashboard() {
   const carouselImages = [
     {
       id: 1,
-      src: 'https://images.unsplash.com/photo-1489599735380-09f4947561f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400',
+      src: 'https://images.bauerhosting.com/empire/2025/08/empire-what-is-dolby-atmos-feature.jpg?ar=16%3A9&fit=crop&crop=top&auto=format&w=1440&q=80',
       title: 'Experience Cinema Like Never Before',
       subtitle: 'Book your tickets now for the latest blockbusters'
     },
