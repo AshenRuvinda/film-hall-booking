@@ -1,18 +1,21 @@
-// backend/routes/adminRoutes.js - ENHANCED WITH HALL MANAGEMENT
+// backend/routes/adminRoutes.js - ENHANCED WITH COMPLETE SHOWTIME CRUD
 const express = require('express');
 const { 
   addMovie, 
   updateMovie, 
   deleteMovie, 
+  getMovies,
   getHalls,
   addHall, 
   updateHall,
   deleteHall,
   getShowtimes,
-  addShowtime, 
+  addShowtime,
+  updateShowtime,
+  deleteShowtime,
+  bulkDeleteShowtimes,
   getReports 
 } = require('../controllers/adminController');
-const authMiddleware = require('../middleware/auth');
 const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -21,6 +24,7 @@ const router = express.Router();
 router.use(requireRole('admin'));
 
 // Movie management
+router.get('/movies', getMovies);
 router.post('/movies', addMovie);
 router.put('/movies/:id', updateMovie);
 router.delete('/movies/:id', deleteMovie);
@@ -31,11 +35,16 @@ router.post('/halls', addHall);
 router.put('/halls/:id', updateHall);
 router.delete('/halls/:id', deleteHall);
 
-// Showtime management
+// Complete Showtime management (CRUD)
 router.get('/showtimes', getShowtimes);
 router.post('/showtimes', addShowtime);
+router.put('/showtimes/:id', updateShowtime);
+router.delete('/showtimes/:id', deleteShowtime);
 
-// Reports
+// Bulk operations
+router.post('/showtimes/bulk-delete', bulkDeleteShowtimes);
+
+// Reports and Analytics
 router.get('/reports', getReports);
 
 module.exports = router;

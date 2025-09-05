@@ -1,4 +1,4 @@
-// frontend/src/App.js - ENHANCED WITH BETTER ROUTE ORGANIZATION
+// frontend/src/App.js - ENHANCED WITH SUPPORT ROUTES
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/common/Layout';
@@ -27,6 +27,12 @@ import Reports from './pages/admin/Reports';
 // Operator pages
 import OperatorDashboard from './pages/operator/Dashboard';
 import ScanTicket from './pages/operator/ScanTicket';
+
+// Support pages
+import ContactUs from './pages/support/ContactUs';
+import TermsConditions from './pages/support/TermsConditions';
+import PrivacyPolicy from './pages/support/PrivacyPolicy';
+import RefundPolicy from './pages/support/RefundPolicy';
 
 // Error pages
 import NotFound from './pages/common/NotFound';
@@ -109,6 +115,12 @@ function App() {
                 <ScanTicket />
               </ProtectedRoute>
             } />
+            
+            {/* Support routes - Public access with navbar */}
+            <Route path="/support/contact" element={<ContactUs />} />
+            <Route path="/support/terms" element={<TermsConditions />} />
+            <Route path="/support/privacy" element={<PrivacyPolicy />} />
+            <Route path="/support/refund" element={<RefundPolicy />} />
             
             {/* 404 Not Found - With navbar */}
             <Route path="*" element={<NotFound />} />

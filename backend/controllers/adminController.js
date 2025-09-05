@@ -1,4 +1,4 @@
-// backend/controllers/adminController.js - COMPLETE UPDATED VERSION
+// backend/controllers/adminController.js - COMPLETE UPDATED VERSION WITH ENHANCED DELETE
 const Movie = require('../models/Movie');
 const Hall = require('../models/Hall');
 const Showtime = require('../models/Showtime');
@@ -714,10 +714,13 @@ exports.updateShowtime = async (req, res) => {
   }
 };
 
+// UPDATED DELETE SHOWTIME WITH BOOKING CANCELLATION SUPPORT
 exports.deleteShowtime = async (req, res) => {
   if (req.session.user.role !== 'admin') {
     return res.status(403).json({ msg: 'Unauthorized' });
   }
+
+  const { forceCancelBookings } = req.body; // Optional parameter to force cancellation
 
   try {
     console.log('Deleting showtime:', req.params.id);
@@ -728,23 +731,130 @@ exports.deleteShowtime = async (req, res) => {
     }
 
     // Check if there are existing bookings
-    const existingBookings = await Booking.countDocuments({
+    const existingBookings = await Booking.find({
       showtimeId: req.params.id,
       status: { $ne: 'cancelled' }
     });
 
-    if (existingBookings > 0) {
-      return res.status(400).json({ 
-        msg: `Cannot delete showtime with ${existingBookings} existing bookings. Cancel bookings first.` 
-      });
+    if (existingBookings.length > 0) {
+      if (forceCancelBookings) {
+        // Cancel all existing bookings
+        const cancelResult = await Booking.updateMany(
+          {
+            showtimeId: req.params.id,
+            status: { $ne: 'cancelled' }
+          },
+          {
+            $set: {
+              status: 'cancelled',
+              cancelledAt: new Date(),
+              cancelledBy: req.session.user._id,
+              cancelReason: 'Showtime cancelled by admin'
+            }
+          }
+        );
+
+        console.log(`Cancelled ${cancelResult.modifiedCount} bookings for showtime ${req.params.id}`);
+        
+      } else {
+        // Return booking details and require confirmation
+        const bookingDetails = existingBookings.map(booking => ({
+          _id: booking._id,
+          customerEmail: booking.customerEmail,
+          seats: booking.seats,
+          totalPrice: booking.totalPrice,
+          createdAt: booking.createdAt
+        }));
+
+        return res.status(400).json({ 
+          msg: `Cannot delete showtime with ${existingBookings.length} existing bookings`,
+          requiresConfirmation: true,
+          existingBookings: bookingDetails,
+          confirmationMessage: `This will cancel ${existingBookings.length} booking(s). Send the request again with 'forceCancelBookings: true' to proceed.`
+        });
+      }
     }
 
+    // Delete the showtime
     await Showtime.findByIdAndDelete(req.params.id);
     
-    console.log('Showtime deleted successfully');
-    res.json({ msg: 'Showtime deleted successfully' });
+    const responseMessage = existingBookings.length > 0 
+      ? `Showtime deleted successfully and ${existingBookings.length} booking(s) were cancelled`
+      : 'Showtime deleted successfully';
+
+    console.log(responseMessage);
+    res.json({ 
+      msg: responseMessage,
+      cancelledBookings: existingBookings.length
+    });
   } catch (error) {
     console.error('Delete showtime error:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({ msg: 'Invalid showtime ID format' });
+    }
+    
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// NEW: Function to cancel bookings for a specific showtime
+exports.cancelShowtimeBookings = async (req, res) => {
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({ msg: 'Unauthorized' });
+  }
+
+  try {
+    console.log('Cancelling bookings for showtime:', req.params.id);
+    
+    const showtime = await Showtime.findById(req.params.id);
+    if (!showtime) {
+      return res.status(404).json({ msg: 'Showtime not found' });
+    }
+
+    // Get existing bookings
+    const existingBookings = await Booking.find({
+      showtimeId: req.params.id,
+      status: { $ne: 'cancelled' }
+    }).populate('userId', 'name email');
+
+    if (existingBookings.length === 0) {
+      return res.status(400).json({ msg: 'No active bookings found for this showtime' });
+    }
+
+    // Cancel all bookings
+    const cancelResult = await Booking.updateMany(
+      {
+        showtimeId: req.params.id,
+        status: { $ne: 'cancelled' }
+      },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelledBy: req.session.user._id,
+          cancelReason: 'Cancelled by admin'
+        }
+      }
+    );
+
+    console.log(`Successfully cancelled ${cancelResult.modifiedCount} bookings`);
+
+    // Return details of cancelled bookings
+    const cancelledBookingDetails = existingBookings.map(booking => ({
+      _id: booking._id,
+      customerName: booking.userId?.name || 'Unknown',
+      customerEmail: booking.userId?.email || booking.customerEmail || 'Unknown',
+      seats: booking.seats,
+      totalPrice: booking.totalPrice
+    }));
+
+    res.json({ 
+      msg: `Successfully cancelled ${cancelResult.modifiedCount} booking(s)`,
+      cancelledBookings: cancelledBookingDetails
+    });
+  } catch (error) {
+    console.error('Cancel showtime bookings error:', error);
     
     if (error.name === 'CastError') {
       return res.status(400).json({ msg: 'Invalid showtime ID format' });
@@ -835,7 +945,7 @@ exports.getReports = async (req, res) => {
             },
             { $unwind: '$showtime' },
             { $match: { 
-              $expr: { $eq: ['$showtime.hallId', '$$hallId'] },
+              $expr: { $eq: ['$showtime.hallId', '$hallId'] },
               status: { $ne: 'cancelled' }
             }},
             { $group: { 
@@ -1028,13 +1138,13 @@ exports.getMovies = async (req, res) => {
   }
 };
 
-// Bulk operations
+// UPDATED BULK DELETE WITH BOOKING CANCELLATION SUPPORT
 exports.bulkDeleteShowtimes = async (req, res) => {
   if (req.session.user.role !== 'admin') {
     return res.status(403).json({ msg: 'Unauthorized' });
   }
 
-  const { showtimeIds } = req.body;
+  const { showtimeIds, forceCancelBookings } = req.body;
   
   if (!Array.isArray(showtimeIds) || showtimeIds.length === 0) {
     return res.status(400).json({ msg: 'Showtime IDs array is required' });
@@ -1044,23 +1154,67 @@ exports.bulkDeleteShowtimes = async (req, res) => {
     console.log('Bulk deleting showtimes:', showtimeIds);
     
     // Check for existing bookings
-    const bookingsCount = await Booking.countDocuments({
+    const existingBookings = await Booking.find({
       showtimeId: { $in: showtimeIds },
       status: { $ne: 'cancelled' }
     });
 
-    if (bookingsCount > 0) {
-      return res.status(400).json({ 
-        msg: `Cannot delete showtimes with ${bookingsCount} existing bookings` 
-      });
+    if (existingBookings.length > 0) {
+      if (forceCancelBookings) {
+        // Cancel all existing bookings
+        const cancelResult = await Booking.updateMany(
+          {
+            showtimeId: { $in: showtimeIds },
+            status: { $ne: 'cancelled' }
+          },
+          {
+            $set: {
+              status: 'cancelled',
+              cancelledAt: new Date(),
+              cancelledBy: req.session.user._id,
+              cancelReason: 'Showtimes cancelled by admin (bulk operation)'
+            }
+          }
+        );
+
+        console.log(`Cancelled ${cancelResult.modifiedCount} bookings for bulk showtime deletion`);
+      } else {
+        // Group bookings by showtime for better reporting
+        const bookingsByShowtime = existingBookings.reduce((acc, booking) => {
+          const showtimeId = booking.showtimeId.toString();
+          if (!acc[showtimeId]) {
+            acc[showtimeId] = [];
+          }
+          acc[showtimeId].push({
+            _id: booking._id,
+            customerEmail: booking.customerEmail,
+            seats: booking.seats,
+            totalPrice: booking.totalPrice
+          });
+          return acc;
+        }, {});
+
+        return res.status(400).json({ 
+          msg: `Cannot delete showtimes with ${existingBookings.length} existing bookings`,
+          requiresConfirmation: true,
+          bookingsByShowtime,
+          confirmationMessage: `This will cancel ${existingBookings.length} booking(s) across ${Object.keys(bookingsByShowtime).length} showtime(s). Send the request again with 'forceCancelBookings: true' to proceed.`
+        });
+      }
     }
 
-    const result = await Showtime.deleteMany({ _id: { $in: showtimeIds } });
+    // Delete the showtimes
+    const deleteResult = await Showtime.deleteMany({ _id: { $in: showtimeIds } });
     
-    console.log(`Bulk deleted ${result.deletedCount} showtimes`);
+    const responseMessage = existingBookings.length > 0 
+      ? `Successfully deleted ${deleteResult.deletedCount} showtime(s) and cancelled ${existingBookings.length} booking(s)`
+      : `Successfully deleted ${deleteResult.deletedCount} showtime(s)`;
+
+    console.log(responseMessage);
     res.json({ 
-      msg: `Successfully deleted ${result.deletedCount} showtimes`,
-      deletedCount: result.deletedCount 
+      msg: responseMessage,
+      deletedCount: deleteResult.deletedCount,
+      cancelledBookings: existingBookings.length
     });
   } catch (error) {
     console.error('Bulk delete showtimes error:', error);

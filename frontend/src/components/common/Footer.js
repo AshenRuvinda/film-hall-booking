@@ -66,16 +66,16 @@ function Footer() {
               <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Help Center
               </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
+              <a href="/support/terms" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Terms & Conditions
               </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
+              <a href="/support/privacy" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Privacy Policy
               </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
+              <a href="/support/refund" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Refund Policy
               </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
+              <a href="/support/contact" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Contact Us
               </a>
             </div>
