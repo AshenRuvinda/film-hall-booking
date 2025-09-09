@@ -1,5 +1,5 @@
-// frontend/src/components/common/Navbar.js - COMPLETE NAVBAR COMPONENT WITH ABOUT US
-import React, { useContext, useState } from 'react';
+// frontend/src/components/common/Navbar.js - ENHANCED NAVBAR WITH PROFILE DROPDOWN
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
 import { 
@@ -15,7 +15,8 @@ import {
   X,
   Ticket,
   Home,
-  Info
+  Info,
+  ChevronDown
 } from 'lucide-react';
 
 function Navbar() {
@@ -23,6 +24,22 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -33,6 +50,7 @@ function Navbar() {
       navigate('/login');
     }
     setIsMobileMenuOpen(false);
+    setIsProfileDropdownOpen(false);
   };
 
   const getDashboardLink = () => {
@@ -67,7 +85,6 @@ function Navbar() {
         return (
           <>
             <NavLink to="/user/dashboard" icon={Film}>Movies</NavLink>
-            <NavLink to="/user/bookings" icon={Ticket}>My Bookings</NavLink>
             <NavLink to="/user/about" icon={Info}>About Us</NavLink>
           </>
         );
@@ -95,6 +112,17 @@ function Navbar() {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+    setIsProfileDropdownOpen(false);
+  };
+
+  const toggleProfileDropdown = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
+
+  // Get user initials for profile icon
+  const getUserInitials = () => {
+    if (!user?.name) return 'U';
+    return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   return (
@@ -122,31 +150,54 @@ function Navbar() {
                   {getNavigationItems()}
                 </div>
                 
-                {/* User Info */}
-                <div className="flex items-center space-x-4 border-l border-gray-600 pl-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="bg-gradient-to-br from-green-500 to-blue-500 p-1.5 rounded-full">
-                        <User size={16} className="text-white" />
+                {/* Profile Dropdown */}
+                <div className="relative" ref={profileDropdownRef}>
+                  <button
+                    onClick={toggleProfileDropdown}
+                    className="flex items-center space-x-3 bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
+                  >
+                    {/* Profile Avatar */}
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
+                      {getUserInitials()}
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-medium text-white">
+                        {user.name}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-white">
-                          {user.name}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                        </div>
+                      <div className="text-xs text-gray-400">
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                       </div>
                     </div>
-                  </div>
-                  
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
-                  >
-                    <LogOut size={16} />
-                    <span>Logout</span>
+                    <ChevronDown 
+                      size={16} 
+                      className={`text-gray-400 transition-transform duration-200 ${
+                        isProfileDropdownOpen ? 'rotate-180' : ''
+                      }`} 
+                    />
                   </button>
+
+                  {/* Dropdown Menu */}
+                  {isProfileDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                      {user.role === 'user' && (
+                        <Link
+                          to="/user/bookings"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                          className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                        >
+                          <Ticket size={18} className="text-blue-600" />
+                          <span className="text-sm font-medium">My Bookings</span>
+                        </Link>
+                      )}
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center space-x-3 w-full px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors duration-150"
+                      >
+                        <LogOut size={18} className="text-red-500" />
+                        <span className="text-sm font-medium">Logout</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (
@@ -188,8 +239,8 @@ function Navbar() {
               <>
                 {/* User Info Mobile */}
                 <div className="flex items-center space-x-3 pb-4 border-b border-gray-600">
-                  <div className="bg-gradient-to-br from-green-500 to-blue-500 p-2 rounded-full">
-                    <User size={20} className="text-white" />
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
+                    {getUserInitials()}
                   </div>
                   <div>
                     <div className="text-sm font-medium text-white">
@@ -213,6 +264,22 @@ function Navbar() {
                           : 'text-gray-300 hover:text-white hover:bg-gray-700'
                       }`
                     })
+                  )}
+
+                  {/* My Bookings for mobile (user role only) */}
+                  {user.role === 'user' && (
+                    <Link
+                      to="/user/bookings"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center space-x-3 w-full px-3 py-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                        isActiveRoute('/user/bookings') 
+                          ? 'bg-blue-600 text-white shadow-lg' 
+                          : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                      }`}
+                    >
+                      <Ticket size={18} />
+                      <span>My Bookings</span>
+                    </Link>
                   )}
                 </div>
 

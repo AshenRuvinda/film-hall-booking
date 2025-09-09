@@ -95,20 +95,7 @@ function Footer() {
               </div>
             </div>
             
-            {/* Newsletter */}
-            <div className="mt-6">
-              <h4 className="text-sm font-medium text-white mb-2">Stay Updated</h4>
-              <div className="flex">
-                <input
-                  type="email"
-                  placeholder="Your email"
-                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-l-md text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-r-md text-white text-sm font-medium transition-all duration-200">
-                  Subscribe
-                </button>
-              </div>
-            </div>
+            
           </div>
         </div>
 
@@ -125,12 +112,7 @@ function Footer() {
               <a href="#" className="hover:text-white transition-colors">
                 Terms
               </a>
-              <a href="#" className="hover:text-white transition-colors">
-                Cookies
-              </a>
-              <a href="#" className="hover:text-white transition-colors">
-                Sitemap
-              </a>
+              
             </div>
           </div>
         </div>

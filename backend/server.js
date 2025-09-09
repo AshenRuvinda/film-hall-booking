@@ -10,8 +10,9 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const operatorRoutes = require('./routes/operatorRoutes');
-const movieRoutes = require('./routes/movieRoutes');        // NEW
-const showtimeRoutes = require('./routes/showtimeRoutes');  // NEW
+const movieRoutes = require('./routes/movieRoutes');
+const showtimeRoutes = require('./routes/showtimeRoutes');
+const dashboardRoutes = require('./routes/dashboard'); // NEW - Dashboard routes
 
 // Load environment variables
 dotenv.config();
@@ -78,8 +79,12 @@ app.get('/api/test', (req, res) => {
 });
 
 // Routes - ORDER MATTERS! More specific routes should come first
-app.use('/api/movies', movieRoutes);        // NEW - Handles /api/movies/*
-app.use('/api/showtimes', showtimeRoutes);  // NEW - Handles /api/showtimes/*
+app.use('/api/movies', movieRoutes);
+app.use('/api/showtimes', showtimeRoutes);
+
+// Dashboard routes - NEW
+app.use('/api', dashboardRoutes); // This handles /api/stats, /api/halls, /api/bookings, /api/users
+
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
@@ -96,6 +101,10 @@ app.use('/api/*', (req, res) => {
       'GET /api/movies',
       'GET /api/movies/:id', 
       'GET /api/showtimes/movie/:movieId',
+      'GET /api/halls',
+      'GET /api/bookings',
+      'GET /api/users',
+      'GET /api/stats',
       'GET /api/auth/check',
       'POST /api/auth/login',
       'POST /api/auth/register'
@@ -123,6 +132,10 @@ app.listen(PORT, () => {
   console.log('   GET /api/movies');
   console.log('   GET /api/movies/:id');
   console.log('   GET /api/showtimes/movie/:movieId');
+  console.log('   GET /api/halls');
+  console.log('   GET /api/bookings');
+  console.log('   GET /api/users');
+  console.log('   GET /api/stats');
   console.log('   GET /api/auth/check');
   console.log('   POST /api/auth/login');
   console.log('   POST /api/auth/register');
