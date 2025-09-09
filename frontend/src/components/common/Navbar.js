@@ -134,10 +134,10 @@ function Navbar() {
             to={getDashboardLink()} 
             className="flex items-center space-x-3 text-xl font-bold hover:text-blue-400 transition-colors duration-200"
           >
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg shadow-lg">
+            <div className="bg-bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-2 rounded-lg shadow-lg">
               <Film size={24} className="text-white" />
             </div>
-            <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            <span className="bg-white bg-clip-text text-transparent">
               Ticket.LK
             </span>
           </Link>
@@ -157,7 +157,7 @@ function Navbar() {
                     className="flex items-center space-x-3 bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
                   >
                     {/* Profile Avatar */}
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
+                    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
                       {getUserInitials()}
                     </div>
                     <div className="text-left">
