@@ -1,4 +1,4 @@
-// frontend/src/components/movies/MovieDetail.js - Enhanced UI Version
+// frontend/src/components/movies/MovieDetail.js - FIXED SEAT COUNT VERSION
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -17,7 +17,8 @@ import {
   Ticket,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -28,10 +29,12 @@ function MovieDetail() {
   // State management
   const [movie, setMovie] = useState(null);
   const [showtimes, setShowtimes] = useState([]);
+  const [showtimesWithSeats, setShowtimesWithSeats] = useState({}); // NEW: Store seat data per showtime
   const [tmdbData, setTmdbData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [loadingTmdb, setLoadingTmdb] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // NEW: For manual refresh
 
   useEffect(() => {
     fetchMovieData();
@@ -41,7 +44,7 @@ function MovieDetail() {
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loading && movie) {
-        fetchShowtimes();
+        fetchShowtimesWithSeatData();
       }
     }, 30000); // Refresh every 30 seconds
 
@@ -57,13 +60,16 @@ function MovieDetail() {
         throw new Error('No movie ID provided');
       }
 
+      console.log(`🎬 Fetching movie data for ID: ${id}`);
+
       // Fetch movie details from backend
       const movieRes = await api.get(`/movies/${id}`);
       const movieData = movieRes.data;
+      console.log('📽️ Movie data:', movieData);
       setMovie(movieData);
 
-      // Fetch showtimes
-      await fetchShowtimes();
+      // Fetch showtimes with seat data
+      await fetchShowtimesWithSeatData();
 
       // Fetch enhanced data from TMDB
       if (movieData?.title) {
@@ -71,19 +77,78 @@ function MovieDetail() {
       }
 
     } catch (error) {
-      console.error('Failed to fetch movie data:', error);
+      console.error('❌ Failed to fetch movie data:', error);
       setError(`Failed to load movie details: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchShowtimes = async () => {
+  // NEW: Enhanced function to fetch showtimes with actual seat availability
+  const fetchShowtimesWithSeatData = async () => {
     try {
+      console.log(`🎫 Fetching showtimes for movie ID: ${id}`);
+      
+      // Fetch showtimes
       const showtimesRes = await api.get(`/showtimes/movie/${id}`);
-      setShowtimes(showtimesRes.data);
+      const showtimesData = showtimesRes.data;
+      console.log(`📅 Found ${showtimesData.length} showtimes`);
+      
+      setShowtimes(showtimesData);
+
+      // For each showtime, fetch the actual booked seats
+      const seatDataPromises = showtimesData.map(async (showtime) => {
+        try {
+          console.log(`🪑 Fetching seat data for showtime: ${showtime._id}`);
+          
+          // Use the correct endpoint that matches your backend
+          const seatRes = await api.get(`/user/showtimes/${showtime._id}/seats`);
+          const seatData = seatRes.data;
+          
+          console.log(`🔍 Showtime ${showtime._id} seat data:`, seatData);
+          
+          return {
+            showtimeId: showtime._id,
+            bookedSeats: seatData.bookedSeats || [],
+            totalSeats: showtime.hallId?.totalSeats || 0
+          };
+        } catch (error) {
+          console.error(`❌ Error fetching seats for showtime ${showtime._id}:`, error);
+          return {
+            showtimeId: showtime._id,
+            bookedSeats: [],
+            totalSeats: showtime.hallId?.totalSeats || 0
+          };
+        }
+      });
+
+      // Wait for all seat data to be fetched
+      const seatResults = await Promise.all(seatDataPromises);
+      
+      // Convert to object for easy lookup
+      const seatDataMap = {};
+      seatResults.forEach(result => {
+        seatDataMap[result.showtimeId] = result;
+        console.log(`💺 Showtime ${result.showtimeId}: ${result.bookedSeats.length}/${result.totalSeats} booked`);
+      });
+      
+      setShowtimesWithSeats(seatDataMap);
+      
     } catch (error) {
-      console.error('Failed to fetch showtimes:', error);
+      console.error('❌ Failed to fetch showtimes with seat data:', error);
+    }
+  };
+
+  // NEW: Manual refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchShowtimesWithSeatData();
+      console.log('✅ Seat data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Failed to refresh seat data:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -147,10 +212,30 @@ function MovieDetail() {
     return new Date(startTime) < new Date();
   };
 
+  // FIXED: Get actual available seats from our seat data
   const getAvailableSeats = (showtime) => {
-    if (!showtime.hallId?.totalSeats) return 'N/A';
-    const bookedSeats = showtime.bookedSeats?.length || 0;
-    return showtime.hallId.totalSeats - bookedSeats;
+    const seatData = showtimesWithSeats[showtime._id];
+    
+    if (!seatData) {
+      console.log(`⚠️ No seat data available for showtime ${showtime._id}`);
+      return {
+        available: showtime.hallId?.totalSeats || 0,
+        total: showtime.hallId?.totalSeats || 0,
+        booked: 0
+      };
+    }
+    
+    const totalSeats = seatData.totalSeats;
+    const bookedCount = seatData.bookedSeats.length;
+    const available = totalSeats - bookedCount;
+    
+    console.log(`🎯 Showtime ${showtime._id}: ${available}/${totalSeats} available (${bookedCount} booked)`);
+    
+    return {
+      available: Math.max(0, available),
+      total: totalSeats,
+      booked: bookedCount
+    };
   };
 
   const handleBookNow = (showtimeId) => {
@@ -439,13 +524,25 @@ function MovieDetail() {
       {/* Showtimes Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 shadow-2xl">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <Ticket className="w-6 h-6 mr-3 text-blue-400" />
-            Showtimes & Booking
-            <span className="ml-3 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm border border-blue-500/30">
-              {showtimes.length} shows
-            </span>
-          </h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-white flex items-center">
+              <Ticket className="w-6 h-6 mr-3 text-blue-400" />
+              Showtimes & Booking
+              <span className="ml-3 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm border border-blue-500/30">
+                {showtimes.length} shows
+              </span>
+            </h2>
+            
+            {/* NEW: Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh Seats'}
+            </button>
+          </div>
 
           {showtimes.length === 0 ? (
             <div className="text-center py-16">
@@ -465,9 +562,9 @@ function MovieDetail() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {dayShowtimes.map((showtime) => {
                       const isPast = isShowtimePast(showtime.startTime);
-                      const availableSeats = getAvailableSeats(showtime);
-                      const isFullyBooked = availableSeats === 0;
-                      const isLowAvailability = availableSeats <= 10 && availableSeats > 0;
+                      const seatInfo = getAvailableSeats(showtime);
+                      const isFullyBooked = seatInfo.available === 0;
+                      const isLowAvailability = seatInfo.available <= 10 && seatInfo.available > 0;
                       
                       return (
                         <div
@@ -494,13 +591,13 @@ function MovieDetail() {
                             <div className="text-right">
                               <p className="text-xl font-bold text-green-400 flex items-center">
                                 <CreditCard className="w-4 h-4 mr-1" />
-                                ${showtime.price}
+                                ${showtime.price || 10}
                               </p>
                               <p className="text-xs text-gray-400">per seat</p>
                             </div>
                           </div>
                           
-                          {/* Seat Availability */}
+                          {/* UPDATED: Seat Availability with real data */}
                           <div className="mb-4">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm text-gray-400 flex items-center">
@@ -514,14 +611,14 @@ function MovieDetail() {
                                   ? 'text-yellow-400'
                                   : 'text-green-400'
                               }`}>
-                                {availableSeats}/{showtime.hallId?.totalSeats || 'N/A'}
+                                {seatInfo.available}/{seatInfo.total}
                               </span>
                             </div>
                             
-                            {/* Progress Bar */}
-                            <div className="w-full bg-gray-700 rounded-full h-2">
+                            {/* Updated Progress Bar */}
+                            <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
                               <div 
-                                className={`h-2 rounded-full transition-all duration-300 ${
+                                className={`h-2 rounded-full transition-all duration-500 ${
                                   isFullyBooked 
                                     ? 'bg-red-500' 
                                     : isLowAvailability 
@@ -529,10 +626,17 @@ function MovieDetail() {
                                     : 'bg-green-500'
                                 }`}
                                 style={{ 
-                                  width: `${showtime.hallId?.totalSeats ? (availableSeats / showtime.hallId.totalSeats) * 100 : 0}%` 
+                                  width: `${seatInfo.total > 0 ? (seatInfo.available / seatInfo.total) * 100 : 0}%` 
                                 }}
                               />
                             </div>
+                            
+                            {/* NEW: Show booking details */}
+                            {seatInfo.booked > 0 && (
+                              <p className="text-xs text-gray-500">
+                                {seatInfo.booked} seat{seatInfo.booked !== 1 ? 's' : ''} booked
+                              </p>
+                            )}
                           </div>
                           
                           {/* Action Button */}
