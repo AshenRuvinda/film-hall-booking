@@ -1,4 +1,4 @@
-// frontend/src/pages/user/Dashboard.js - FIXED VERSION
+// frontend/src/pages/user/Dashboard.js - UPDATED WITH REAL STATS
 import React, { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Film,
   Sparkles,
-  Play
+  Play,
+  Users
 } from 'lucide-react';
 
 function UserDashboard() {
@@ -35,13 +36,16 @@ function UserDashboard() {
   const [showMore, setShowMore] = useState(false);
   const [moviesPerLoad] = useState(8);
   
-  // Add stats state
+  // Updated stats state to fetch real data
   const [stats, setStats] = useState({
     loading: true,
     totalMovies: 0,
-    totalLocations: 12, // Static for now, can be fetched from API
-    averageRating: 0,
-    totalCustomers: 50000 // Static for now, can be fetched from API
+    totalHalls: 0,
+    totalBookings: 0,
+    totalUsers: 0,
+    activeShowtimes: 0,
+    totalRevenue: 0,
+    error: null
   });
 
   const { user } = useContext(AuthContext);
@@ -76,7 +80,7 @@ function UserDashboard() {
 
   useEffect(() => {
     fetchMovies();
-    fetchStats(); // Add stats fetching
+    fetchStats(); // Fetch real stats from API
   }, []);
 
   useEffect(() => {
@@ -117,50 +121,51 @@ function UserDashboard() {
     }
   };
 
-  // Add fetchStats function
+  // Updated fetchStats function to get real data
   const fetchStats = async () => {
     try {
-      // You can replace this with actual API calls
-      // For now, we'll calculate stats from movies data
+      console.log('Fetching real dashboard statistics...');
       setStats(prevStats => ({
         ...prevStats,
-        loading: true
+        loading: true,
+        error: null
       }));
 
-      // Simulate API delay
-      setTimeout(() => {
-        setStats(prevStats => ({
-          ...prevStats,
-          loading: false
-        }));
-      }, 1000);
+      // Fetch stats from your existing dashboard API
+      const res = await api.get('/stats');
+      console.log('Stats response:', res.data);
+      
+      if (res.data && res.data.stats) {
+        setStats({
+          loading: false,
+          totalMovies: res.data.stats.totalMovies || 0,
+          totalHalls: res.data.stats.totalHalls || 0,
+          totalBookings: res.data.stats.totalBookings || 0,
+          totalUsers: res.data.stats.totalUsers || 0,
+          activeShowtimes: res.data.stats.activeShowtimes || 0,
+          totalRevenue: res.data.stats.totalRevenue || 0,
+          error: null
+        });
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
       console.error('Fetch stats error:', error);
       setStats(prevStats => ({
         ...prevStats,
-        loading: false
+        loading: false,
+        error: 'Failed to fetch statistics'
       }));
+      
+      // Fallback to basic stats from movies if API fails
+      if (movies.length > 0) {
+        setStats(prevStats => ({
+          ...prevStats,
+          totalMovies: movies.length
+        }));
+      }
     }
   };
-
-  // Update stats when movies change
-  useEffect(() => {
-    if (movies.length > 0) {
-      const totalRatings = movies.reduce((sum, movie) => {
-        const rating = movie.rating || movie.imdbRating || 0;
-        return sum + (parseFloat(rating) || 0);
-      }, 0);
-      
-      const averageRating = movies.length > 0 ? totalRatings / movies.length : 0;
-
-      setStats(prevStats => ({
-        ...prevStats,
-        totalMovies: movies.length,
-        averageRating: averageRating,
-        loading: false
-      }));
-    }
-  }, [movies]);
 
   const filterMovies = () => {
     let filtered = movies;
@@ -203,33 +208,58 @@ function UserDashboard() {
     return [...new Set(genres)];
   };
 
-  // Generate quick stats from fetched data
-  const getQuickStats = () => [
-    { 
-      icon: Film, 
-      label: 'Total Movies', 
-      value: stats.loading ? '...' : `${stats.totalMovies || 0}`, 
-      color: 'text-blue-400' 
-    },
-    { 
-      icon: Ticket, 
-      label: 'Total Bookings', 
-      value: stats.loading ? '...' : `${stats.totalBookings ? (stats.totalBookings >= 1000 ? `${Math.floor(stats.totalBookings / 1000)}K+` : stats.totalBookings) : '0'}`, 
-      color: 'text-green-400' 
-    },
-    { 
-      icon: MapPin, 
-      label: 'Total Halls', 
-      value: stats.loading ? '...' : `${stats.totalHalls || 0}`, 
-      color: 'text-yellow-400' 
-    },
-    { 
-      icon: TrendingUp, 
-      label: 'Total Users', 
-      value: stats.loading ? '...' : `${stats.totalUsers ? (stats.totalUsers >= 1000 ? `${Math.floor(stats.totalUsers / 1000)}K+` : stats.totalUsers) : '0'}`, 
-      color: 'text-purple-400' 
+  // Updated quick stats with real data
+  const getQuickStats = () => {
+    const formatNumber = (num) => {
+      if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(1)}M`;
+      } else if (num >= 1000) {
+        return `${(num / 1000).toFixed(1)}K`;
+      }
+      return num.toString();
+    };
+
+    return [
+      { 
+        icon: Film, 
+        label: 'Movies Playing', 
+        value: stats.loading ? '...' : formatNumber(stats.totalMovies), 
+        color: 'text-blue-400',
+        description: 'Total movies available'
+      },
+      { 
+        icon: Ticket, 
+        label: 'Total Bookings', 
+        value: stats.loading ? '...' : formatNumber(stats.totalBookings), 
+        color: 'text-green-400',
+        description: 'Tickets sold'
+      },
+      { 
+        icon: MapPin, 
+        label: 'Cinema Halls', 
+        value: stats.loading ? '...' : formatNumber(stats.totalHalls), 
+        color: 'text-yellow-400',
+        description: 'Available screens'
+      },
+      { 
+        icon: Users, 
+        label: 'Happy Customers', 
+        value: stats.loading ? '...' : formatNumber(stats.totalUsers), 
+        color: 'text-purple-400',
+        description: 'Registered customers'
+      }
+    ];
+  };
+
+  // Format revenue for display
+  const formatRevenue = (revenue) => {
+    if (revenue >= 1000000) {
+      return `$${(revenue / 1000000).toFixed(1)}M`;
+    } else if (revenue >= 1000) {
+      return `$${(revenue / 1000).toFixed(1)}K`;
     }
-  ];
+    return `$${revenue}`;
+  };
 
   if (loading) {
     return (
@@ -326,27 +356,45 @@ function UserDashboard() {
           ))}
         </div>
 
-        {/* Quick Stats Overlay */}
+        {/* Enhanced Quick Stats Overlay with Real Data */}
         <div className="absolute bottom-8 right-8 hidden lg:block">
           <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl p-6">
-            <div className="grid grid-cols-2 gap-6">
-              {getQuickStats().map((stat, index) => {
-                const IconComponent = stat.icon;
-                return (
-                  <div key={index} className="text-center">
-                    <IconComponent className={`w-8 h-8 ${stat.color} mx-auto mb-2`} />
-                    <div className="text-2xl font-bold text-white">
-                      {stats.loading ? (
-                        <div className="animate-pulse bg-gray-600 h-6 w-12 rounded mx-auto"></div>
-                      ) : (
-                        stat.value
+            {/* Quick Stats Display */}
+            {stats.error ? (
+              <div className="text-center text-red-400">
+                <span className="text-sm">Stats unavailable</span>
+                <button 
+                  onClick={fetchStats}
+                  className="ml-2 text-xs underline hover:no-underline"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-6">
+                {getQuickStats().map((stat, index) => {
+                  const IconComponent = stat.icon;
+                  return (
+                    <div key={index} className="text-center group">
+                      <IconComponent className={`w-8 h-8 ${stat.color} mx-auto mb-2 group-hover:scale-110 transition-transform`} />
+                      <div className="text-2xl font-bold text-white">
+                        {stats.loading ? (
+                          <div className="animate-pulse bg-gray-600 h-6 w-12 rounded mx-auto"></div>
+                        ) : (
+                          stat.value
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-300">{stat.label}</div>
+                      {stat.description && (
+                        <div className="text-xs text-gray-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {stat.description}
+                        </div>
                       )}
                     </div>
-                    <div className="text-sm text-gray-300">{stat.label}</div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
