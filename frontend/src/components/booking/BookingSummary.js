@@ -109,7 +109,7 @@ function BookingSummary() {
             </svg>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Booking Not Found</h3>
             <p className="text-gray-600 mb-6">{error || 'The booking you requested could not be found.'}</p>
-            <Link to="/user/bookings" className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            <Link to="/user/bookings" className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors">
               Back to My Bookings
             </Link>
           </div>
