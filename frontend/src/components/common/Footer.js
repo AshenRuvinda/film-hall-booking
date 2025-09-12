@@ -76,19 +76,19 @@ function Footer() {
             <h3 className="text-lg font-semibold text-white">Contact Info</h3>
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
-                <MapPin size={16} className="text-blue-400 flex-shrink-0" />
+                <MapPin size={16} className="text-white-400 flex-shrink-0" />
                 <span className="text-gray-400 text-sm">
                   123 Galle Road, Colombo 03, Sri Lanka
                 </span>
               </div>
               <div className="flex items-center space-x-3">
-                <Phone size={16} className="text-green-400 flex-shrink-0" />
+                <Phone size={16} className="text-white-400 flex-shrink-0" />
                 <span className="text-gray-400 text-sm">
                   +94 11 234 5678
                 </span>
               </div>
               <div className="flex items-center space-x-3">
-                <Mail size={16} className="text-red-400 flex-shrink-0" />
+                <Mail size={16} className="text-white-400 flex-shrink-0" />
                 <span className="text-gray-400 text-sm">
                   support@ticket.lk
                 </span>
