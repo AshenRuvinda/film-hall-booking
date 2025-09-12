@@ -1,4 +1,4 @@
-// frontend/src/pages/user/Dashboard.js - UPDATED WITH REAL STATS
+// frontend/src/pages/user/Dashboard.js - UPDATED WITH BOTTOM STATS AND MODALS
 import React, { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -20,7 +20,17 @@ import {
   Film,
   Sparkles,
   Play,
-  Users
+  Users,
+  X,
+  Gift,
+  Award,
+  Zap,
+  Shield,
+  Crown,
+  Camera,
+  Volume2,
+  Coffee,
+  Smartphone
 } from 'lucide-react';
 
 function UserDashboard() {
@@ -34,7 +44,12 @@ function UserDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [showMore, setShowMore] = useState(false);
-  const [moviesPerLoad] = useState(8);
+  const [moviesPerLoad] = useState(4);
+  
+  // Modal states
+  const [showLearnMoreModal, setShowLearnMoreModal] = useState(false);
+  const [showMemberRewardsModal, setShowMemberRewardsModal] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState('features');
   
   // Updated stats state to fetch real data
   const [stats, setStats] = useState({
@@ -78,9 +93,68 @@ function UserDashboard() {
     }
   ];
 
+  // Modal data
+  const learnMoreFeatures = [
+    {
+      icon: Camera,
+      title: 'IMAX & Dolby Vision',
+      description: 'Experience movies in stunning 4K resolution with immersive surround sound',
+      details: 'Our premium theaters feature state-of-the-art projection systems and crystal-clear audio'
+    },
+    {
+      icon: Crown,
+      title: 'VIP Seating',
+      description: 'Luxury leather recliners with personal service',
+      details: 'Fully reclining seats with heated options and dedicated waitstaff for the ultimate comfort'
+    },
+    {
+      icon: Coffee,
+      title: 'Gourmet Concessions',
+      description: 'Artisanal snacks and premium beverages',
+      details: 'From handcrafted cocktails to gourmet popcorn, elevate your movie experience'
+    },
+    {
+      icon: Smartphone,
+      title: 'Mobile Integration',
+      description: 'Seamless booking and digital tickets',
+      details: 'Reserve seats, order concessions, and access your tickets all from your phone'
+    }
+  ];
+
+  const memberRewards = [
+    {
+      icon: Star,
+      title: 'Loyalty Points',
+      description: 'Earn 10 points for every dollar spent',
+      benefit: 'Redeem for free tickets, upgrades, and exclusive merchandise',
+      color: 'text-yellow-400'
+    },
+    {
+      icon: Gift,
+      title: 'Birthday Rewards',
+      description: 'Free movie ticket on your special day',
+      benefit: 'Plus exclusive birthday concession discounts',
+      color: 'text-pink-400'
+    },
+    {
+      icon: Zap,
+      title: 'Early Access',
+      description: 'Book tickets before general public',
+      benefit: 'Get the best seats for premieres and special events',
+      color: 'text-blue-400'
+    },
+    {
+      icon: Award,
+      title: 'VIP Status Tiers',
+      description: 'Silver, Gold, and Platinum membership levels',
+      benefit: 'Unlock exclusive lounges, premium seating, and special events',
+      color: 'text-purple-400'
+    }
+  ];
+
   useEffect(() => {
     fetchMovies();
-    fetchStats(); // Fetch real stats from API
+    fetchStats();
   }, []);
 
   useEffect(() => {
@@ -93,14 +167,12 @@ function UserDashboard() {
   }, [filteredMovies, moviesPerLoad]);
 
   useEffect(() => {
-    // Set featured movies (first 3 movies with high ratings or special flag)
     if (movies.length > 0) {
       const featured = movies.slice(0, 3);
       setFeaturedMovies(featured);
     }
   }, [movies]);
 
-  // Auto-advance carousel
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % carouselImages.length);
@@ -121,7 +193,6 @@ function UserDashboard() {
     }
   };
 
-  // Updated fetchStats function to get real data
   const fetchStats = async () => {
     try {
       console.log('Fetching real dashboard statistics...');
@@ -131,7 +202,6 @@ function UserDashboard() {
         error: null
       }));
 
-      // Fetch stats from your existing dashboard API
       const res = await api.get('/stats');
       console.log('Stats response:', res.data);
       
@@ -157,7 +227,6 @@ function UserDashboard() {
         error: 'Failed to fetch statistics'
       }));
       
-      // Fallback to basic stats from movies if API fails
       if (movies.length > 0) {
         setStats(prevStats => ({
           ...prevStats,
@@ -208,7 +277,6 @@ function UserDashboard() {
     return [...new Set(genres)];
   };
 
-  // Updated quick stats with real data
   const getQuickStats = () => {
     const formatNumber = (num) => {
       if (num >= 1000000) {
@@ -251,15 +319,188 @@ function UserDashboard() {
     ];
   };
 
-  // Format revenue for display
-  const formatRevenue = (revenue) => {
-    if (revenue >= 1000000) {
-      return `$${(revenue / 1000000).toFixed(1)}M`;
-    } else if (revenue >= 1000) {
-      return `$${(revenue / 1000).toFixed(1)}K`;
-    }
-    return `$${revenue}`;
-  };
+  // Modal Components
+  const LearnMoreModal = () => (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Premium Cinema Experience</h2>
+            <p className="text-gray-400 mt-1">Discover what makes us special</p>
+          </div>
+          <button
+            onClick={() => setShowLearnMoreModal(false)}
+            className="text-gray-400 hover:text-white transition-colors p-2"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {learnMoreFeatures.map((feature, index) => {
+              const IconComponent = feature.icon;
+              return (
+                <div key={index} className="bg-slate-700/50 border border-slate-600 rounded-xl p-6 hover:bg-slate-700 transition-colors group">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-red-500/20 p-3 rounded-lg">
+                      <IconComponent className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-red-400 transition-colors">
+                        {feature.title}
+                      </h3>
+                      <p className="text-gray-300 mb-3">{feature.description}</p>
+                      <p className="text-sm text-gray-400">{feature.details}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* CTA Section */}
+          <div className="mt-8 text-center bg-gradient-to-r from-red-600/20 to-purple-600/20 rounded-xl p-6 border border-red-500/30">
+            <h3 className="text-xl font-bold text-white mb-2">Ready to Experience Premium Cinema?</h3>
+            <p className="text-gray-300 mb-4">Book your next movie with premium features</p>
+            <button 
+              onClick={() => setShowLearnMoreModal(false)}
+              className="bg-gradient-to-r from-red-600 to-red-500 text-white px-8 py-3 rounded-lg font-semibold hover:from-red-700 hover:to-red-600 transition-all duration-200"
+            >
+              Browse Movies
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const MemberRewardsModal = () => (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="w-6 h-6 text-yellow-400" />
+              <h2 className="text-2xl font-bold text-white">Member Rewards Program</h2>
+            </div>
+            <p className="text-gray-400">Exclusive benefits for our valued members</p>
+          </div>
+          <button
+            onClick={() => setShowMemberRewardsModal(false)}
+            className="text-gray-400 hover:text-white transition-colors p-2"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-6">
+          {/* Current Member Status */}
+          {user && (
+            <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-xl p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-1">Welcome, {user.name}!</h3>
+                  <p className="text-purple-300">Silver Member • 2,450 points earned</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-white">2,450</div>
+                  <div className="text-sm text-purple-300">Loyalty Points</div>
+                </div>
+              </div>
+              <div className="mt-4 bg-slate-800/50 rounded-lg p-3">
+                <div className="flex justify-between text-sm text-gray-300 mb-2">
+                  <span>Progress to Gold Status</span>
+                  <span>2,450 / 5,000 points</span>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full" style={{width: '49%'}}></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rewards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {memberRewards.map((reward, index) => {
+              const IconComponent = reward.icon;
+              return (
+                <div key={index} className="bg-slate-700/50 border border-slate-600 rounded-xl p-6 hover:bg-slate-700 transition-colors group">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-slate-600/50 p-3 rounded-lg">
+                      <IconComponent className={`w-6 h-6 ${reward.color}`} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2">{reward.title}</h3>
+                      <p className="text-gray-300 mb-2">{reward.description}</p>
+                      <p className="text-sm text-gray-400">{reward.benefit}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Membership Tiers */}
+          <div className="bg-slate-700/30 rounded-xl p-6">
+            <h3 className="text-xl font-bold text-white mb-4 text-center">Membership Tiers</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-600/50 rounded-lg p-4 text-center">
+                <Shield className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <h4 className="font-semibold text-white">Silver</h4>
+                <p className="text-sm text-gray-300">0 - 4,999 points</p>
+                <ul className="text-xs text-gray-400 mt-2 space-y-1">
+                  <li>• 5% discount on tickets</li>
+                  <li>• Birthday reward</li>
+                </ul>
+              </div>
+              <div className="bg-yellow-600/20 border border-yellow-500/30 rounded-lg p-4 text-center">
+                <Award className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                <h4 className="font-semibold text-white">Gold</h4>
+                <p className="text-sm text-gray-300">5,000 - 14,999 points</p>
+                <ul className="text-xs text-gray-400 mt-2 space-y-1">
+                  <li>• 10% discount on tickets</li>
+                  <li>• Free drink upgrade</li>
+                  <li>• Early access booking</li>
+                </ul>
+              </div>
+              <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg p-4 text-center">
+                <Crown className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                <h4 className="font-semibold text-white">Platinum</h4>
+                <p className="text-sm text-gray-300">15,000+ points</p>
+                <ul className="text-xs text-gray-400 mt-2 space-y-1">
+                  <li>• 15% discount on tickets</li>
+                  <li>• VIP lounge access</li>
+                  <li>• Exclusive events</li>
+                  <li>• Free concession upgrades</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Join CTA */}
+          <div className="mt-6 text-center">
+            <button 
+              onClick={() => setShowMemberRewardsModal(false)}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-8 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-purple-600 transition-all duration-200 mr-4"
+            >
+              View My Rewards
+            </button>
+            <button 
+              onClick={() => setShowMemberRewardsModal(false)}
+              className="border-2 border-purple-500 text-purple-400 px-8 py-3 rounded-lg font-semibold hover:bg-purple-500 hover:text-white transition-all duration-200"
+            >
+              Redeem Points
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -317,7 +558,10 @@ function UserDashboard() {
                       <Play className="w-5 h-5" />
                       {image.cta}
                     </button>
-                    <button className="border-2 border-white/30 text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition-all duration-200 backdrop-blur-sm">
+                    <button 
+                      onClick={() => setShowLearnMoreModal(true)}
+                      className="border-2 border-white/30 text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition-all duration-200 backdrop-blur-sm"
+                    >
                       Learn More
                     </button>
                   </div>
@@ -354,48 +598,6 @@ function UserDashboard() {
               }`}
             />
           ))}
-        </div>
-
-        {/* Enhanced Quick Stats Overlay with Real Data */}
-        <div className="absolute bottom-8 right-8 hidden lg:block">
-          <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl p-6">
-            {/* Quick Stats Display */}
-            {stats.error ? (
-              <div className="text-center text-red-400">
-                <span className="text-sm">Stats unavailable</span>
-                <button 
-                  onClick={fetchStats}
-                  className="ml-2 text-xs underline hover:no-underline"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-6">
-                {getQuickStats().map((stat, index) => {
-                  const IconComponent = stat.icon;
-                  return (
-                    <div key={index} className="text-center group">
-                      <IconComponent className={`w-8 h-8 ${stat.color} mx-auto mb-2 group-hover:scale-110 transition-transform`} />
-                      <div className="text-2xl font-bold text-white">
-                        {stats.loading ? (
-                          <div className="animate-pulse bg-gray-600 h-6 w-12 rounded mx-auto"></div>
-                        ) : (
-                          stat.value
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-300">{stat.label}</div>
-                      {stat.description && (
-                        <div className="text-xs text-gray-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {stat.description}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -446,7 +648,10 @@ function UserDashboard() {
                     <Ticket className="w-5 h-5" />
                     My Bookings
                   </Link>
-                  <button className="inline-flex items-center gap-3 border-2 border-purple-500 text-purple-400 px-8 py-4 rounded-lg font-semibold hover:bg-purple-500 hover:text-white transition-all duration-200">
+                  <button 
+                    onClick={() => setShowMemberRewardsModal(true)}
+                    className="inline-flex items-center gap-3 border-2 border-purple-500 text-purple-400 px-8 py-4 rounded-lg font-semibold hover:bg-purple-500 hover:text-white transition-all duration-200"
+                  >
                     <Star className="w-5 h-5" />
                     Member Rewards
                   </button>
@@ -532,10 +737,12 @@ function UserDashboard() {
         {/* Enhanced Movies Grid */}
         {displayedMovies.length > 0 ? (
           <div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
               {displayedMovies.map((movie) => (
-                <div key={movie._id} className="group">
-                  <MovieCard movie={movie} />
+                <div key={movie._id} className="group h-full">
+                  <div className="h-full">
+                    <MovieCard movie={movie} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -581,6 +788,98 @@ function UserDashboard() {
           </div>
         )}
       </div>
+
+      {/* Enhanced Bottom Stats Section */}
+      <div className="bg-gradient-to-b from-slate-900 to-slate-800 border-t border-slate-700">
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          {/* Stats Header */}
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <TrendingUp className="w-8 h-8 text-green-400" />
+              <span className="text-green-400 font-semibold uppercase tracking-wider text-sm">
+                Cinema Statistics
+              </span>
+            </div>
+            <h3 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Our <span className="text-gradient bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">Success</span> Story
+            </h3>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Discover the numbers that showcase our commitment to delivering exceptional cinema experiences
+            </p>
+          </div>
+
+          {/* Stats Error Handling */}
+          {stats.error ? (
+            <div className="text-center py-12">
+              <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-6 py-4 rounded-xl inline-block mb-4">
+                <span>Unable to load statistics</span>
+              </div>
+              <br />
+              <button 
+                onClick={fetchStats}
+                className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                Retry Loading Stats
+              </button>
+            </div>
+          ) : (
+            <div>
+              {/* Main Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+                {getQuickStats().map((stat, index) => {
+                  const IconComponent = stat.icon;
+                  return (
+                    <div key={index} className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-8 text-center group hover:bg-slate-800 transition-all duration-300 hover:-translate-y-2">
+                      <div className="relative mb-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-purple-500/20 rounded-full blur-xl group-hover:blur-2xl transition-all"></div>
+                        <IconComponent className={`relative w-12 h-12 ${stat.color} mx-auto group-hover:scale-110 transition-transform duration-300`} />
+                      </div>
+                      
+                      <div className="text-4xl font-bold text-white mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-red-400 group-hover:to-purple-400 group-hover:bg-clip-text transition-all duration-300">
+                        {stats.loading ? (
+                          <div className="animate-pulse bg-gray-600 h-10 w-20 rounded mx-auto"></div>
+                        ) : (
+                          stat.value
+                        )}
+                      </div>
+                      
+                      <div className="text-lg font-semibold text-gray-300 mb-2 group-hover:text-white transition-colors">
+                        {stat.label}
+                      </div>
+                      
+                      <div className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
+                        {stat.description}
+                      </div>
+                      
+                      {/* Animated border */}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300 -z-10"></div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Active Showtimes */}
+              {stats.activeShowtimes > 0 && (
+                <div className="text-center">
+                  <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 inline-block">
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-6 h-6 text-blue-400" />
+                      <span className="text-white font-semibold">
+                        {stats.loading ? '...' : stats.activeShowtimes} Active Showtimes
+                      </span>
+                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showLearnMoreModal && <LearnMoreModal />}
+      {showMemberRewardsModal && <MemberRewardsModal />}
     </div>
   );
 }
