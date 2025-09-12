@@ -503,7 +503,47 @@ function MovieDetail() {
                           <p className="text-gray-300">{displayData.director}</p>
                         </div>
                       )}
-                      {displayData.cast && (
+                      {tmdbData?.credits?.cast && tmdbData.credits.cast.length > 0 && (
+                        <div className="lg:col-span-2">
+                          <h4 className="text-white font-semibold mb-4 flex items-center">
+                            <Users className="w-4 h-4 mr-2 text-blue-400" />
+                            Cast
+                          </h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {tmdbData.credits.cast.slice(0, 10).map((actor, index) => (
+                              <div key={index} className="text-center group">
+                                <div className="relative mb-2 overflow-hidden rounded-lg">
+                                  <img
+                                    src={actor.profile_path 
+                                      ? `https://image.tmdb.org/t/p/w185${actor.profile_path}`
+                                      : 'https://via.placeholder.com/185x278/374151/FFFFFF?text=No+Photo'
+                                    }
+                                    alt={actor.name}
+                                    className="w-full h-24 sm:h-28 object-cover transition-transform duration-300 group-hover:scale-105"
+                                    onError={(e) => {
+                                      e.target.src = 'https://via.placeholder.com/185x278/374151/FFFFFF?text=No+Photo';
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                </div>
+                                <h5 className="text-white text-sm font-medium mb-1 line-clamp-2 leading-tight">
+                                  {actor.name}
+                                </h5>
+                                <p className="text-gray-400 text-xs line-clamp-2">
+                                  {actor.character}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          {tmdbData.credits.cast.length > 10 && (
+                            <p className="text-gray-400 text-sm mt-3 text-center">
+                              And {tmdbData.credits.cast.length - 10} more cast members...
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {/* Fallback for when TMDB data isn't available */}
+                      {displayData.cast && (!tmdbData?.credits?.cast || tmdbData.credits.cast.length === 0) && (
                         <div>
                           <h4 className="text-white font-semibold mb-2 flex items-center">
                             <Users className="w-4 h-4 mr-2 text-blue-400" />
