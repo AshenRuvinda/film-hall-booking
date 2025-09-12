@@ -69,7 +69,7 @@ function UserDashboard() {
   const carouselImages = [
     {
       id: 1,
-      src: 'https://images.unsplash.com/photo-1489599743317-fa33f4c0c585?ixlib=rb-4.0.3&auto=format&fit=crop&w=1440&h=600',
+      src: 'https://image.cnbcfm.com/api/v1/image/107198579-1677121939840-gettyimages-1051853192-775239116LN023_IMAX_Private.jpeg?v=1751996915&w=1920&h=1080',
       title: 'IMAX Experience',
       subtitle: 'Feel Every Moment in Stunning Detail',
       cta: 'Book IMAX Tickets',
@@ -77,7 +77,7 @@ function UserDashboard() {
     },
     {
       id: 2,
-      src: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=1440&h=600',
+      src: 'https://media.assettype.com/bloombergquint%2F2024-05%2F7cbba07b-7650-4719-b85c-300b0d868f02%2Ffelix_mooneeram_evlkOfkQ5rE_unsplash.jpg?rect=0%2C850%2C6000%2C3150&w=1200&auto=format%2Ccompress&ogImage=true',
       title: 'Premium Seating',
       subtitle: 'Luxury Recliners & Gourmet Concessions',
       cta: 'Upgrade Your Experience',
