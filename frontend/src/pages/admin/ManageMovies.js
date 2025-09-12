@@ -38,7 +38,7 @@ function ManageMovies() {
     genre: ''
   });
 
-  const genres = ['Action', 'Comedy', 'Drama', 'Horror', 'Romance', 'Sci-Fi', 'Thriller', 'Documentary'];
+  const genres = ['Action', 'Comedy', 'Drama', 'Horror', 'Romance', 'Sci-Fi', 'Thriller', 'Documentary','Biography','Animation','Fantasy','Adventure'];
 
   useEffect(() => {
     fetchMovies();
