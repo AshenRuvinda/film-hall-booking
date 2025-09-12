@@ -11,12 +11,11 @@ function Footer() {
           {/* Brand Section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-2 rounded-lg shadow-lg">
-                <Film size={24} className="text-white" />
-              </div>
-              <span className="text-xl font-bold bg-white bg-clip-text text-transparent">
-                Ticket.lk
-              </span>
+              <img 
+                src="/logo.png" 
+                alt="Ticket.lk" 
+                className="h-8 w-auto"
+              />
             </div>
             <p className="text-gray-400 text-sm">
               Sri Lanka's premier online movie ticket booking platform. Experience the magic of cinema with ease and convenience.

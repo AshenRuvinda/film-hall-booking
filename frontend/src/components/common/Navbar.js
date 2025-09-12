@@ -229,9 +229,9 @@ function Navbar() {
                   <div className="relative" ref={profileDropdownRef}>
                     <button
                       onClick={toggleProfileDropdown}
-                      className="px-4 py-2 text-sm font-medium text-white border border-white/20 rounded-full hover:bg-white/10 transition-all duration-200"
+                      className="flex items-center justify-center w-8 h-8 text-sm font-medium text-white bg-white/10 border border-white/20 rounded-full hover:bg-white/20 transition-all duration-200"
                     >
-                      {user.name}
+                      <User size={16} />
                     </button>
 
                     {/* Profile Dropdown Menu */}
