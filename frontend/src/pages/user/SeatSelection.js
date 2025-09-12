@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Film, Users, ArrowLeft, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Film, Users, ArrowLeft, CreditCard, AlertCircle, Loader2, X, Check } from 'lucide-react';
 import api from '../../utils/api';
 import SeatMap from '../../components/booking/SeatMap';
 
@@ -15,6 +15,7 @@ function SeatSelection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [booking, setBooking] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     fetchShowtimeData();
@@ -55,12 +56,16 @@ function SeatSelection() {
     setError('');
   };
 
-  const handleBooking = async () => {
+  const handleBookingClick = () => {
     if (selectedSeats.length === 0) {
       setError('Please select at least one seat');
       return;
     }
+    setShowConfirmation(true);
+  };
 
+  const handleConfirmBooking = async () => {
+    setShowConfirmation(false);
     setBooking(true);
     setError('');
 
@@ -106,6 +111,10 @@ function SeatSelection() {
     } finally {
       setBooking(false);
     }
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
   };
 
   const calculateTotal = () => {
@@ -327,7 +336,7 @@ function SeatSelection() {
               {/* Action Button */}
               <div className="flex-shrink-0">
                 <button
-                  onClick={handleBooking}
+                  onClick={handleBookingClick}
                   disabled={selectedSeats.length === 0 || booking}
                   className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors min-w-[200px] justify-center"
                 >
@@ -340,7 +349,7 @@ function SeatSelection() {
                     <>
                       <CreditCard className="w-5 h-5" />
                       {selectedSeats.length > 0 
-                        ? `Book ${selectedSeats.length} Seat${selectedSeats.length !== 1 ? 's' : ''} - ${calculateTotal()}`
+                        ? `Book ${selectedSeats.length} Seat${selectedSeats.length !== 1 ? 's' : ''} - $${calculateTotal()}`
                         : 'Select Seats to Continue'
                       }
                     </>
@@ -351,6 +360,105 @@ function SeatSelection() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900">Confirm Your Booking</h3>
+              <button
+                onClick={handleCancelConfirmation}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* Movie Info Summary */}
+              <div className="mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Film className="w-5 h-5 text-blue-600" />
+                  <h4 className="font-semibold text-gray-900">{showtime?.movie?.title}</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Date:</span>
+                    <span className="font-medium">{formatDate(showtime?.startTime)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Time:</span>
+                    <span className="font-medium">{formatTime(showtime?.startTime)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Hall:</span>
+                    <span className="font-medium">{hall?.name} - {hall?.location}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Selected Seats */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-900 mb-3">Selected Seats</h4>
+                <div className="space-y-2">
+                  {selectedSeats.map((seat, index) => (
+                    <div key={index} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-3 h-3 rounded ${
+                          seat.type === 'box' ? 'bg-purple-500' : 'bg-blue-500'
+                        }`}></span>
+                        <span className="font-medium">Seat {seat.id}</span>
+                        <span className="text-sm text-gray-600">({seat.type})</span>
+                      </div>
+                      <span className="font-medium">${seat.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="border-t border-gray-200 pt-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
+                  <span className="text-xl font-bold text-green-600">${calculateTotal()}</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedSeats.length} seat{selectedSeats.length !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+
+              {/* Terms */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> Once confirmed, your booking cannot be canceled or refunded. 
+                  Please ensure your selected seats and showtime are correct.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-col sm:flex-row gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={handleCancelConfirmation}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmBooking}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check className="w-5 h-5" />
+                Confirm Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
