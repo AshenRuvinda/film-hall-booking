@@ -1,4 +1,4 @@
-// backend/routes/dashboardRoutes.js
+// backend/routes/dashboard.js - UPDATED TO FILTER USERS BY ROLE
 const express = require('express');
 const router = express.Router();
 
@@ -80,10 +80,10 @@ router.get('/showtimes', async (req, res) => {
   }
 });
 
-// Get all users (excluding passwords)
+// Get users with role='user' only (excluding admins and operators)
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find()
+    const users = await User.find({ role: 'user' }) // FIXED: Filter by role
       .select('name email role createdAt')
       .sort({ createdAt: -1 })
       .limit(1000); // Limit for performance
@@ -95,20 +95,20 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// Get dashboard statistics (optimized single endpoint)
+// Get dashboard statistics (optimized single endpoint) - UPDATED
 router.get('/stats', async (req, res) => {
   try {
     console.log('Fetching dashboard statistics...');
     const now = new Date();
     
-    // Get basic counts in parallel
+    // Get basic counts in parallel - UPDATED to filter users by role
     const [movieCount, hallCount, userCount] = await Promise.all([
       Movie.countDocuments(),
       Hall.countDocuments(), 
-      User.countDocuments()
+      User.countDocuments({ role: 'user' }) // FIXED: Only count users with role='user'
     ]);
 
-    console.log(`Basic counts - Movies: ${movieCount}, Halls: ${hallCount}, Users: ${userCount}`);
+    console.log(`Basic counts - Movies: ${movieCount}, Halls: ${hallCount}, Users (role=user): ${userCount}`);
 
     // Get booking data
     const bookings = await Booking.find()
@@ -189,7 +189,7 @@ router.get('/stats', async (req, res) => {
         totalBookings,
         totalRevenue,
         activeShowtimes,
-        totalUsers: userCount
+        totalUsers: userCount // This now only includes users with role='user'
       },
       bookingsData,
       revenueData,
@@ -208,14 +208,18 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Get recent activities (bonus endpoint)
+// Get recent activities (bonus endpoint) - UPDATED to filter user activities
 router.get('/recent-activities', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     
-    // Get recent bookings
+    // Get recent bookings from users with role='user' only
     const recentBookings = await Booking.find()
-      .populate('userId', 'name email')
+      .populate({
+        path: 'userId',
+        match: { role: 'user' }, // FIXED: Only include bookings from users with role='user'
+        select: 'name email'
+      })
       .populate({
         path: 'showtimeId',
         populate: {
@@ -225,9 +229,12 @@ router.get('/recent-activities', async (req, res) => {
       })
       .select('status createdAt totalPrice')
       .sort({ createdAt: -1 })
-      .limit(limit);
+      .limit(limit * 2); // Get more to account for filtering
 
-    const activities = recentBookings.map(booking => ({
+    // Filter out bookings where userId didn't match (null after populate with match)
+    const validBookings = recentBookings.filter(booking => booking.userId);
+
+    const activities = validBookings.slice(0, limit).map(booking => ({
       id: booking._id,
       type: 'booking',
       description: `${booking.userId?.name || 'User'} booked ${booking.showtimeId?.movieId?.title || 'a movie'}`,
@@ -243,6 +250,41 @@ router.get('/recent-activities', async (req, res) => {
   }
 });
 
+// Alternative endpoint to get user statistics breakdown by role
+router.get('/user-stats', async (req, res) => {
+  try {
+    const userStats = await User.aggregate([
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    const totalUsers = await User.countDocuments();
+    const regularUsers = await User.countDocuments({ role: 'user' });
+    const adminUsers = await User.countDocuments({ role: 'admin' });
+    const operatorUsers = await User.countDocuments({ role: 'operator' });
+
+    res.json({
+      breakdown: userStats,
+      summary: {
+        total: totalUsers,
+        users: regularUsers,
+        admins: adminUsers,
+        operators: operatorUsers
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user statistics' });
+  }
+});
+
 // Health check for dashboard
 router.get('/dashboard/health', (req, res) => {
   res.json({
@@ -255,7 +297,8 @@ router.get('/dashboard/health', (req, res) => {
       'GET /api/halls',
       'GET /api/bookings',
       'GET /api/showtimes',
-      'GET /api/users',
+      'GET /api/users (role=user only)',
+      'GET /api/user-stats (breakdown by role)',
       'GET /api/recent-activities'
     ]
   });
