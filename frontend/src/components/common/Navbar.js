@@ -1,4 +1,4 @@
-// frontend/src/components/common/Navbar.js - MINIMALIST DARK NAVBAR
+// frontend/src/components/common/Navbar.js - UPDATED WITHOUT REWARDS
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -19,7 +19,6 @@ import {
   ChevronDown,
   Star,
   Search,
-  Award,
   FileText,
   Shield,
   RefreshCw,
@@ -258,12 +257,12 @@ function Navbar() {
                               </Link>
                               
                               <Link
-                                to="/user/rewards"
+                                to="/user/profile"
                                 onClick={() => setIsProfileDropdownOpen(false)}
                                 className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
                               >
-                                <Award size={14} className="mr-3" />
-                                Rewards
+                                <User size={14} className="mr-3" />
+                                Profile
                               </Link>
                               
                               <Link
@@ -393,11 +392,11 @@ function Navbar() {
                         My Bookings
                       </Link>
                       <Link
-                        to="/user/rewards"
+                        to="/user/profile"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="block px-0 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
                       >
-                        Rewards
+                        Profile
                       </Link>
                       <Link
                         to="/user/settings"
