@@ -33,6 +33,7 @@ function SeatSelection() {
       const showtimeData = showtimeRes.data;
       
       console.log('Showtime data received:', showtimeData);
+      console.log('Pricing data:', showtimeData.pricing);
       
       setShowtime(showtimeData);
       setHall(showtimeData.hall);
@@ -50,9 +51,76 @@ function SeatSelection() {
     }
   };
 
+  // Helper function to determine seat type based on seat ID
+  const determineSeatType = (seatId) => {
+    if (!seatId) return 'regular';
+    
+    const seatIdLower = seatId.toLowerCase();
+    if (seatIdLower.includes('box') || 
+        seatIdLower.includes('vip') || 
+        seatIdLower.includes('premium')) {
+      return 'box';
+    }
+    
+    // Add more logic based on your seat naming convention
+    // Example: if certain rows are premium (adjust as needed)
+    // if (seatId.match(/^[I-J]/)) return 'box'; // Rows I-J are premium
+    
+    return 'regular';
+  };
+
+  // Helper function to get real price for a seat
+  const getSeatPrice = (seatId, seatType = null) => {
+    if (!showtime?.pricing) {
+      return 10; // Fallback price
+    }
+    
+    const type = seatType || determineSeatType(seatId);
+    return showtime.pricing[type] || showtime.pricing.regular || 10;
+  };
+
   const handleSeatSelect = (seats) => {
-    console.log('Seats selected:', seats);
-    setSelectedSeats(seats);
+    console.log('Raw seats selected:', seats);
+    
+    // Enhanced seat processing with real pricing
+    const processedSeats = seats.map(seat => {
+      let seatData;
+      
+      if (typeof seat === 'object') {
+        // If seat is already an object with id/seatId
+        const seatId = seat.id || seat.seatId || seat;
+        const seatType = seat.type || seat.seatType || determineSeatType(seatId);
+        const price = getSeatPrice(seatId, seatType);
+        
+        seatData = {
+          id: seatId,
+          seatId: seatId, // For backward compatibility
+          type: seatType,
+          seatType: seatType, // For backward compatibility
+          price: price
+        };
+      } else if (typeof seat === 'string') {
+        // If seat is just a string ID
+        const seatType = determineSeatType(seat);
+        const price = getSeatPrice(seat, seatType);
+        
+        seatData = {
+          id: seat,
+          seatId: seat,
+          type: seatType,
+          seatType: seatType,
+          price: price
+        };
+      } else {
+        console.warn('Unknown seat format:', seat);
+        return null;
+      }
+      
+      return seatData;
+    }).filter(Boolean); // Remove null values
+    
+    console.log('Processed seats with real pricing:', processedSeats);
+    setSelectedSeats(processedSeats);
     setError('');
   };
 
@@ -73,13 +141,13 @@ function SeatSelection() {
       console.log('Starting booking process...');
       console.log('Selected seats for booking:', selectedSeats);
       
-      // Format the booking data to match what the backend expects
+      // Format the booking data - let backend determine real prices
       const bookingData = {
         showtimeId,
         seats: selectedSeats.map(seat => ({
-          seatId: seat.id,
-          seatType: seat.type,
-          price: seat.price
+          seatId: seat.id || seat.seatId,
+          seatType: seat.type || seat.seatType,
+          // Don't include price - let backend calculate the real price
         }))
       };
 
@@ -118,7 +186,7 @@ function SeatSelection() {
   };
 
   const calculateTotal = () => {
-    return selectedSeats.reduce((total, seat) => total + seat.price, 0);
+    return selectedSeats.reduce((total, seat) => total + (seat.price || 0), 0);
   };
 
   const formatDate = (dateString) => {
@@ -136,6 +204,24 @@ function SeatSelection() {
       minute: '2-digit',
       hour12: true
     });
+  };
+
+  // Group selected seats by type for display
+  const groupSeatsByType = (seats) => {
+    return seats.reduce((acc, seat) => {
+      const type = seat.type || 'regular';
+      if (!acc[type]) {
+        acc[type] = {
+          seats: [],
+          count: 0,
+          totalPrice: 0
+        };
+      }
+      acc[type].seats.push(seat);
+      acc[type].count++;
+      acc[type].totalPrice += seat.price || 0;
+      return acc;
+    }, {});
   };
 
   if (loading) {
@@ -167,6 +253,8 @@ function SeatSelection() {
       </div>
     );
   }
+
+  const seatsByType = groupSeatsByType(selectedSeats);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -255,6 +343,31 @@ function SeatSelection() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Pricing Information */}
+                  {showtime.pricing && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold text-gray-900 mb-2">Seat Pricing</h4>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                          <span className="text-gray-600">Regular:</span>
+                          <span className="font-semibold text-green-600">
+                            ${showtime.pricing.regular}
+                          </span>
+                        </div>
+                        {showtime.pricing.box > showtime.pricing.regular && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-purple-500 rounded"></div>
+                            <span className="text-gray-600">Box/Premium:</span>
+                            <span className="font-semibold text-green-600">
+                              ${showtime.pricing.box}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -277,6 +390,7 @@ function SeatSelection() {
               bookedSeats={bookedSeats}
               selectedSeats={selectedSeats}
               onSeatSelect={handleSeatSelect}
+              pricing={showtime?.pricing} // Pass pricing to SeatMap
             />
           ) : (
             <div className="flex items-center justify-center h-64">
@@ -297,32 +411,39 @@ function SeatSelection() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Booking Summary</h3>
                 
                 {selectedSeats.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {selectedSeats.map((seat, index) => (
-                        <span
-                          key={index}
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            seat.type === 'box'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {seat.id} - ${seat.price}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Selected Seats:</span>
-                        <span className="font-medium text-gray-900 ml-2">
-                          {selectedSeats.length}
-                        </span>
+                  <div className="space-y-3">
+                    {/* Group by seat type */}
+                    {Object.entries(seatsByType).map(([type, data]) => (
+                      <div key={type} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-medium text-gray-900 capitalize">
+                            {type} Seats ({data.count})
+                          </h4>
+                          <span className="font-semibold text-green-600">
+                            ${data.totalPrice}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {data.seats.map((seat, index) => (
+                            <span
+                              key={index}
+                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                seat.type === 'box'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {seat.id}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div>
+                    ))}
+                    
+                    <div className="border-t pt-3 mt-3">
+                      <div className="flex justify-between items-center">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-bold text-gray-900 ml-2">
+                        <span className="text-xl font-bold text-gray-900">
                           ${calculateTotal()}
                         </span>
                       </div>
@@ -401,20 +522,20 @@ function SeatSelection() {
                 </div>
               </div>
 
-              {/* Selected Seats */}
+              {/* Selected Seats by Type */}
               <div className="mb-6">
                 <h4 className="font-semibold text-gray-900 mb-3">Selected Seats</h4>
-                <div className="space-y-2">
-                  {selectedSeats.map((seat, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-3 h-3 rounded ${
-                          seat.type === 'box' ? 'bg-purple-500' : 'bg-blue-500'
-                        }`}></span>
-                        <span className="font-medium">Seat {seat.id}</span>
-                        <span className="text-sm text-gray-600">({seat.type})</span>
+                <div className="space-y-3">
+                  {Object.entries(seatsByType).map(([type, data]) => (
+                    <div key={type} className="border rounded-lg p-3 bg-gray-50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium capitalize">{type} Seats</span>
+                        <span className="font-medium">${data.totalPrice}</span>
                       </div>
-                      <span className="font-medium">${seat.price}</span>
+                      <div className="text-sm text-gray-600">
+                        {data.seats.map(seat => seat.id).join(', ')} 
+                        <span className="ml-2">({data.count} × ${data.seats[0]?.price || 0})</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -453,7 +574,7 @@ function SeatSelection() {
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
               >
                 <Check className="w-5 h-5" />
-                Confirm Booking
+                Confirm Booking - ${calculateTotal()}
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-// backend/controllers/userController.js - FIXED bookTicket function
+// backend/controllers/userController.js - COMPLETE UPDATED VERSION WITH REAL PRICING
 const Movie = require('../models/Movie');
 const Booking = require('../models/Booking');
 const Seat = require('../models/Seat');
@@ -27,9 +27,9 @@ exports.getMovieById = async (req, res) => {
       return res.status(404).json({ msg: 'Movie not found' });
     }
     
-    // Get showtimes for this movie
+    // Get showtimes for this movie with hall pricing
     const showtimes = await Showtime.find({ movieId: movie._id })
-      .populate('hallId', 'name totalSeats')
+      .populate('hallId', 'name totalSeats pricing')
       .sort({ startTime: 1 });
     
     console.log(`Found ${showtimes.length} showtimes for movie`);
@@ -46,31 +46,55 @@ exports.getMovieById = async (req, res) => {
   }
 };
 
-// Get showtime details with hall and movie info
+// UPDATED: Get showtime details with real pricing
 exports.getShowtimeById = async (req, res) => {
   try {
     console.log(`Fetching showtime with ID: ${req.params.id}`);
     
     const showtime = await Showtime.findById(req.params.id)
       .populate('movieId')
-      .populate('hallId');
+      .populate('hallId'); // This includes the full hall data with pricing
     
     if (!showtime) {
       console.log('Showtime not found');
       return res.status(404).json({ msg: 'Showtime not found' });
     }
 
-    // Format the response to match what the frontend expects
+    // Get effective pricing (showtime override or hall default)
+    let effectivePricing;
+    if (showtime.pricing && (showtime.pricing.regular || showtime.pricing.box)) {
+      // Use showtime-specific pricing if available
+      effectivePricing = {
+        regular: showtime.pricing.regular || showtime.hallId?.pricing?.regular || 10,
+        box: showtime.pricing.box || showtime.hallId?.pricing?.box || 25
+      };
+    } else {
+      // Use hall's default pricing
+      effectivePricing = {
+        regular: showtime.hallId?.pricing?.regular || 10,
+        box: showtime.hallId?.pricing?.box || 25
+      };
+    }
+
+    // Format the response to include real pricing
     const formattedShowtime = {
       _id: showtime._id,
       startTime: showtime.startTime,
       endTime: showtime.endTime,
-      price: showtime.price || 10,
       movie: showtime.movieId,
-      hall: showtime.hallId
+      hall: showtime.hallId,
+      // Include real pricing
+      pricing: effectivePricing,
+      // For backward compatibility, show regular price as default
+      price: effectivePricing.regular
     };
 
-    console.log('Showtime found:', formattedShowtime);
+    console.log('Showtime found with effective pricing:', {
+      regular: effectivePricing.regular,
+      box: effectivePricing.box,
+      hasShowtimeOverride: !!(showtime.pricing && (showtime.pricing.regular || showtime.pricing.box))
+    });
+    
     res.json(formattedShowtime);
   } catch (error) {
     console.error('Get showtime error:', error);
@@ -178,7 +202,7 @@ exports.getSeats = async (req, res) => {
   }
 };
 
-// FIXED: Enhanced bookTicket function
+// UPDATED: Enhanced bookTicket function with real pricing
 exports.bookTicket = async (req, res) => {
   const { showtimeId, seats } = req.body;
   
@@ -195,16 +219,55 @@ exports.bookTicket = async (req, res) => {
       return res.status(400).json({ msg: 'Invalid booking data' });
     }
 
-    // Validate showtime exists
+    // Validate showtime exists and get hall with pricing
     const showtime = await Showtime.findById(showtimeId)
       .populate('movieId', 'title')
-      .populate('hallId', 'name');
+      .populate('hallId', 'name pricing seatBlocks boxSeats'); // Include full hall data
       
     if (!showtime) {
       return res.status(404).json({ msg: 'Showtime not found' });
     }
 
-    // Process seats data and calculate total price
+    // Get effective pricing (showtime override or hall default)
+    let effectivePricing;
+    if (showtime.pricing && (showtime.pricing.regular || showtime.pricing.box)) {
+      // Use showtime-specific pricing if available
+      effectivePricing = {
+        regular: showtime.pricing.regular || showtime.hallId?.pricing?.regular || 10,
+        box: showtime.pricing.box || showtime.hallId?.pricing?.box || 25
+      };
+      console.log('Using showtime-specific pricing');
+    } else {
+      // Use hall's default pricing
+      effectivePricing = {
+        regular: showtime.hallId?.pricing?.regular || 10,
+        box: showtime.hallId?.pricing?.box || 25
+      };
+      console.log('Using hall default pricing');
+    }
+
+    console.log('Effective pricing:', effectivePricing);
+
+    // Helper function to determine seat type from seat ID
+    const determineSeatType = (seatId) => {
+      if (!seatId) return 'regular';
+      
+      // Check if it's a box seat based on naming convention
+      const seatIdLower = seatId.toLowerCase();
+      if (seatIdLower.includes('box') || 
+          seatIdLower.includes('vip') || 
+          seatIdLower.includes('premium')) {
+        return 'box';
+      }
+      
+      // You can add more logic here based on your hall layout
+      // For example, if certain rows are premium:
+      // if (seatId.match(/^[I-J]/)) return 'box'; // Rows I-J are premium
+      
+      return 'regular';
+    };
+
+    // Process seats data and calculate total price with REAL prices
     let seatData = [];
     let totalPrice = 0;
 
@@ -214,24 +277,31 @@ exports.bookTicket = async (req, res) => {
       
       if (typeof seat === 'object' && seat.seatId) {
         // Format: { seatId: 'Block 1-A1', seatType: 'regular', price: 10 }
+        const seatType = seat.seatType || determineSeatType(seat.seatId);
+        const realPrice = effectivePricing[seatType] || effectivePricing.regular;
+        
         seatInfo = {
           seatId: seat.seatId,
-          seatType: seat.seatType || 'regular',
-          price: seat.price || 10
+          seatType: seatType,
+          price: realPrice // Use real price from hall/showtime
         };
       } else if (typeof seat === 'object' && seat.id) {
         // Format: { id: 'Block 1-A1', type: 'regular', price: 10 }
+        const seatType = seat.type || determineSeatType(seat.id);
+        const realPrice = effectivePricing[seatType] || effectivePricing.regular;
+        
         seatInfo = {
           seatId: seat.id,
-          seatType: seat.type || 'regular',
-          price: seat.price || 10
+          seatType: seatType,
+          price: realPrice
         };
       } else if (typeof seat === 'string') {
         // Format: 'Block 1-A1'
+        const seatType = determineSeatType(seat);
         seatInfo = {
           seatId: seat,
-          seatType: 'regular',
-          price: 10
+          seatType: seatType,
+          price: effectivePricing[seatType] || effectivePricing.regular
         };
       } else {
         console.error('Unrecognized seat format:', seat);
@@ -242,8 +312,8 @@ exports.bookTicket = async (req, res) => {
       totalPrice += seatInfo.price;
     }
 
-    console.log('Processed seat data:', JSON.stringify(seatData, null, 2));
-    console.log('Total price:', totalPrice);
+    console.log('Processed seat data with real prices:', JSON.stringify(seatData, null, 2));
+    console.log('Total price with real pricing:', totalPrice);
 
     // Check if any seats are already booked for this showtime
     const existingBookings = await Booking.find({
@@ -291,20 +361,21 @@ exports.bookTicket = async (req, res) => {
       qrCode = null;
     }
 
-    // Create booking with proper seat structure
+    // Create booking with real pricing
     const booking = new Booking({
       userId: req.session.user.id,
       showtimeId,
-      seats: seatData, // Store as array of objects with seatId, seatType, price
-      totalPrice,
+      seats: seatData, // Store with real prices and seat types
+      totalPrice, // Calculated with real prices
       qrCode,
       status: 'confirmed'
     });
 
-    console.log('Creating booking:', {
+    console.log('Creating booking with real pricing:', {
       userId: req.session.user.id,
       showtimeId,
-      seats: seatData,
+      seatsCount: seatData.length,
+      seatTypes: [...new Set(seatData.map(s => s.seatType))],
       totalPrice,
       status: 'confirmed'
     });
@@ -317,12 +388,13 @@ exports.bookTicket = async (req, res) => {
         path: 'showtimeId', 
         populate: [
           { path: 'movieId', select: 'title genre duration poster' },
-          { path: 'hallId', select: 'name location totalSeats' }
+          { path: 'hallId', select: 'name location totalSeats pricing' }
         ]
       }
     ]);
 
-    console.log(`Booking created successfully: ${booking._id}`);
+    console.log(`Booking created successfully with real pricing: ${booking._id}`);
+    console.log(`Pricing breakdown:`, seatData.map(s => `${s.seatId} (${s.seatType}): $${s.price}`));
     
     res.json({ 
       msg: 'Booking successful', 
@@ -359,14 +431,43 @@ exports.getBookings = async (req, res) => {
     const bookings = await Booking.find({ userId: req.session.user.id })
       .populate({
         path: 'showtimeId',
-        populate: {
-          path: 'movieId hallId'
-        }
+        populate: [
+          { path: 'movieId', select: 'title genre duration poster' },
+          { path: 'hallId', select: 'name location totalSeats pricing' }
+        ]
       })
       .sort({ createdAt: -1 });
 
     console.log(`Found ${bookings.length} bookings`);
-    res.json(bookings);
+    
+    // Add pricing information to each booking for frontend display
+    const bookingsWithPricing = bookings.map(booking => {
+      const bookingObj = booking.toObject();
+      
+      // Group seats by type for better display
+      if (bookingObj.seats && Array.isArray(bookingObj.seats)) {
+        const seatsByType = bookingObj.seats.reduce((acc, seat) => {
+          const type = seat.seatType || 'regular';
+          if (!acc[type]) {
+            acc[type] = {
+              seats: [],
+              count: 0,
+              totalPrice: 0
+            };
+          }
+          acc[type].seats.push(seat.seatId);
+          acc[type].count++;
+          acc[type].totalPrice += seat.price || 0;
+          return acc;
+        }, {});
+        
+        bookingObj.seatsByType = seatsByType;
+      }
+      
+      return bookingObj;
+    });
+    
+    res.json(bookingsWithPricing);
   } catch (error) {
     console.error('Get bookings error:', error);
     res.status(500).json({ msg: 'Server error', error: error.message });
@@ -385,16 +486,38 @@ exports.getBookingById = async (req, res) => {
     })
     .populate({
       path: 'showtimeId',
-      populate: {
-        path: 'movieId hallId'
-      }
+      populate: [
+        { path: 'movieId', select: 'title genre duration poster' },
+        { path: 'hallId', select: 'name location totalSeats pricing' }
+      ]
     });
 
     if (!booking) {
       return res.status(404).json({ msg: 'Booking not found' });
     }
 
-    res.json(booking);
+    // Add seat grouping by type for better display
+    const bookingObj = booking.toObject();
+    if (bookingObj.seats && Array.isArray(bookingObj.seats)) {
+      const seatsByType = bookingObj.seats.reduce((acc, seat) => {
+        const type = seat.seatType || 'regular';
+        if (!acc[type]) {
+          acc[type] = {
+            seats: [],
+            count: 0,
+            totalPrice: 0
+          };
+        }
+        acc[type].seats.push(seat.seatId);
+        acc[type].count++;
+        acc[type].totalPrice += seat.price || 0;
+        return acc;
+      }, {});
+      
+      bookingObj.seatsByType = seatsByType;
+    }
+
+    res.json(bookingObj);
   } catch (error) {
     console.error('Get booking by ID error:', error);
     res.status(500).json({ msg: 'Server error', error: error.message });

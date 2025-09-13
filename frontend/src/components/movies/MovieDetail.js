@@ -618,24 +618,44 @@ function MovieDetail() {
                           }`}
                         >
                           {/* Time and Hall */}
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <p className="text-2xl font-bold text-white mb-1">
-                                {formatDateTime(showtime.startTime).time}
-                              </p>
-                              <div className="flex items-center text-gray-400">
-                                <MapPin className="w-4 h-4 mr-1" />
-                                <span className="text-sm">{showtime.hallId?.name || 'Unknown Hall'}</span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xl font-bold text-green-400 flex items-center">
-                                <CreditCard className="w-4 h-4 mr-1" />
-                                ${showtime.price || 10}
-                              </p>
-                              <p className="text-xs text-gray-400">per seat</p>
-                            </div>
-                          </div>
+{/* Time and Hall */}
+<div className="flex justify-between items-start mb-4">
+  <div>
+    <p className="text-2xl font-bold text-white mb-1">
+      {formatDateTime(showtime.startTime).time}
+    </p>
+    <div className="flex items-center text-gray-400">
+      <MapPin className="w-4 h-4 mr-1" />
+      <span className="text-sm">{showtime.hallId?.name || 'Unknown Hall'}</span>
+    </div>
+  </div>
+  <div className="text-right">
+    {/* FIXED: Always show pricing structure - backend now provides pricing */}
+    {showtime.pricing ? (
+      <div>
+        <p className="text-xl font-bold text-green-400 flex items-center">
+          <CreditCard className="w-4 h-4 mr-1" />
+          ${showtime.pricing.regular}
+        </p>
+        <p className="text-xs text-gray-400">Regular seats</p>
+        {showtime.pricing.box && showtime.pricing.box > showtime.pricing.regular && (
+          <>
+            
+          </>
+        )}
+      </div>
+    ) : (
+      // Fallback - this should rarely be used now
+      <div>
+        <p className="text-xl font-bold text-gray-400 flex items-center">
+          <CreditCard className="w-4 h-4 mr-1" />
+          <span className="text-sm">Pricing</span>
+        </p>
+        <p className="text-xs text-gray-500">Not available</p>
+      </div>
+    )}
+  </div>
+</div>
                           
                           {/* UPDATED: Seat Availability with real data */}
                           <div className="mb-4">
