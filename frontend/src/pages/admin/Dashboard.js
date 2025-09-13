@@ -42,7 +42,6 @@ function AdminDashboard() {
   useEffect(() => {
     fetchDashboardData();
     
-    // Check online status
     const handleOnline = () => {
       setDashboardData(prev => ({ ...prev, isOffline: false }));
       fetchDashboardData();
@@ -71,20 +70,50 @@ function AdminDashboard() {
       if (response.ok) {
         const data = await response.json();
         
-        // Get hall occupancy data separately
-        const hallsResponse = await fetch('/api/halls');
-        const bookingsResponse = await fetch('/api/bookings');
+        const stats = data.stats || {
+          totalMovies: 0,
+          totalHalls: 0,
+          totalBookings: 0,
+          totalRevenue: 0,
+          activeShowtimes: 0,
+          totalUsers: 0
+        };
         
+        // Get additional data for charts
         let hallOccupancyData = [];
+        let bookingsData = [];
+        let revenueData = [];
+        let bookingStatusData = [];
         
-        if (hallsResponse.ok && bookingsResponse.ok) {
-          const halls = await hallsResponse.json();
-          const bookings = await bookingsResponse.json();
-          hallOccupancyData = calculateHallOccupancy(halls, bookings);
+        try {
+          const [hallsRes, bookingsRes] = await Promise.all([
+            fetch('/api/halls'),
+            fetch('/api/bookings')
+          ]);
+          
+          if (hallsRes.ok && bookingsRes.ok) {
+            const halls = await hallsRes.json();
+            const bookings = await bookingsRes.json();
+            
+            console.log(`Fetched ${Array.isArray(bookings) ? bookings.length : 0} bookings for processing`);
+            
+            // Process the chart data
+            const chartData = processChartData(bookings);
+            bookingsData = chartData.bookingsData;
+            revenueData = chartData.revenueData;
+            bookingStatusData = chartData.bookingStatusData;
+            
+            hallOccupancyData = calculateHallOccupancy(halls, bookings);
+          }
+        } catch (error) {
+          console.warn('Error fetching additional chart data:', error);
         }
         
         setDashboardData({
-          ...data,
+          stats,
+          bookingsData,
+          revenueData,
+          bookingStatusData,
           hallOccupancyData,
           loading: false,
           error: null,
@@ -111,7 +140,8 @@ function AdminDashboard() {
         try {
           const res = await fetch(endpoint.url);
           if (res.ok) {
-            results[endpoint.key] = await res.json();
+            const data = await res.json();
+            results[endpoint.key] = Array.isArray(data) ? data : [];
           } else {
             console.warn(`Failed to fetch ${endpoint.key}: ${res.status}`);
             results[endpoint.key] = [];
@@ -128,7 +158,6 @@ function AdminDashboard() {
         throw new Error('No API endpoints are available. Please check your backend server.');
       }
       
-      // Process the data
       const processedData = processData(
         results.movies || [],
         results.halls || [],
@@ -147,7 +176,6 @@ function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       
-      // Set fallback data for demo purposes
       const fallbackData = {
         stats: {
           totalMovies: 0,
@@ -170,28 +198,142 @@ function AdminDashboard() {
     }
   };
 
-  const calculateHallOccupancy = (halls, bookings) => {
+  const processChartData = (bookings = []) => {
+    if (!Array.isArray(bookings) || bookings.length === 0) {
+      console.log('No bookings data provided to processChartData');
+      return {
+        bookingsData: [],
+        revenueData: [],
+        bookingStatusData: []
+      };
+    }
+
+    console.log(`Processing ${bookings.length} bookings for chart data`);
+
+    // Generate last 7 days array with consistent date formatting
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      // Use ISO date string (YYYY-MM-DD) for consistent comparison
+      last7Days.push(date.toISOString().split('T')[0]);
+    }
+
+    console.log('Last 7 days range:', last7Days);
+
+    // Initialize data structures
+    const bookingsByDate = {};
+    const revenueByDate = {};
+    
+    last7Days.forEach(date => {
+      bookingsByDate[date] = 0;
+      revenueByDate[date] = 0;
+    });
+
+    // Process each booking
+    let processedCount = 0;
+    bookings.forEach(booking => {
+      try {
+        if (booking && booking.createdAt) {
+          // Extract date from booking creation time
+          const bookingDate = new Date(booking.createdAt).toISOString().split('T')[0];
+          
+          // Check if this booking falls within our 7-day range
+          if (bookingsByDate.hasOwnProperty(bookingDate)) {
+            bookingsByDate[bookingDate]++;
+            processedCount++;
+            
+            // Add revenue if booking is confirmed
+            if (['confirmed', 'checked-in'].includes(booking.status)) {
+              const price = booking.totalPrice || booking.totalAmount || 0;
+              revenueByDate[bookingDate] += typeof price === 'number' ? price : 0;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error processing booking date:', error);
+      }
+    });
+
+    console.log(`Processed ${processedCount} bookings within date range`);
+    console.log('Bookings by date:', bookingsByDate);
+    console.log('Revenue by date:', revenueByDate);
+
+    // Convert to chart format
+    const bookingsData = last7Days.map(date => ({
+      date: new Date(date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+      bookings: bookingsByDate[date] || 0
+    }));
+
+    const revenueData = last7Days.map(date => ({
+      date: new Date(date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+      revenue: revenueByDate[date] || 0
+    }));
+
+    // Process booking status distribution
+    const statusCount = bookings.reduce((acc, booking) => {
+      try {
+        const status = booking && booking.status ? booking.status : 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      } catch (error) {
+        console.warn('Error processing booking status:', error);
+        return acc;
+      }
+    }, {});
+
+    const bookingStatusData = Object.entries(statusCount).map(([status, count]) => ({
+      status: status.charAt(0).toUpperCase() + status.slice(1),
+      count,
+      percentage: bookings.length > 0 ? ((count / bookings.length) * 100).toFixed(1) : '0'
+    }));
+
+    console.log('Final chart data:', {
+      bookingsData: bookingsData.filter(d => d.bookings > 0).length,
+      revenueData: revenueData.filter(d => d.revenue > 0).length,
+      bookingStatusData: bookingStatusData.length
+    });
+
+    return {
+      bookingsData,
+      revenueData,
+      bookingStatusData
+    };
+  };
+
+  const calculateHallOccupancy = (halls = [], bookings = []) => {
+    if (!Array.isArray(halls) || !Array.isArray(bookings)) {
+      console.warn('calculateHallOccupancy: Invalid input parameters');
+      return [];
+    }
+
     const hallBookings = {};
     
     halls.forEach(hall => {
-      hallBookings[hall._id] = {
-        name: hall.name,
-        totalBookings: 0,
-        totalSeats: 0,
-        capacity: hall.totalSeats || 0
-      };
+      if (hall && hall._id) {
+        hallBookings[hall._id] = {
+          name: hall.name || 'Unknown Hall',
+          totalBookings: 0,
+          totalSeats: 0,
+          capacity: hall.totalSeats || 0
+        };
+      }
     });
 
     bookings
-      .filter(booking => ['confirmed', 'checked-in'].includes(booking.status))
+      .filter(booking => booking && ['confirmed', 'checked-in'].includes(booking.status))
       .forEach(booking => {
-        if (booking.showtimeId && booking.showtimeId.hallId && hallBookings[booking.showtimeId.hallId._id || booking.showtimeId.hallId]) {
-          const hallId = booking.showtimeId.hallId._id || booking.showtimeId.hallId;
-          if (hallBookings[hallId]) {
-            const seatCount = booking.seats ? booking.seats.length : 0;
-            hallBookings[hallId].totalBookings++;
-            hallBookings[hallId].totalSeats += seatCount;
+        try {
+          if (booking.showtimeId && booking.showtimeId.hallId) {
+            const hallId = booking.showtimeId.hallId._id || booking.showtimeId.hallId;
+            if (hallBookings[hallId]) {
+              const seatCount = Array.isArray(booking.seats) ? booking.seats.length : 0;
+              hallBookings[hallId].totalBookings++;
+              hallBookings[hallId].totalSeats += seatCount;
+            }
           }
+        } catch (error) {
+          console.warn('Error processing booking for hall occupancy:', error);
         }
       });
 
@@ -207,88 +349,51 @@ function AdminDashboard() {
       }));
   };
 
-  const processData = (movies, halls, bookings, showtimes, users) => {
+  const processData = (movies = [], halls = [], bookings = [], showtimes = [], users = []) => {
+    const safeMovies = Array.isArray(movies) ? movies : [];
+    const safeHalls = Array.isArray(halls) ? halls : [];
+    const safeBookings = Array.isArray(bookings) ? bookings : [];
+    const safeShowtimes = Array.isArray(showtimes) ? showtimes : [];
+    const safeUsers = Array.isArray(users) ? users : [];
+
     const now = new Date();
     
-    // Filter active showtimes
-    const activeShowtimes = showtimes.filter(showtime => 
-      new Date(showtime.endTime) > now
-    );
-
-    // Calculate total revenue
-    const totalRevenue = bookings
-      .filter(booking => ['confirmed', 'checked-in'].includes(booking.status))
-      .reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
-
-    // Process bookings by date (last 7 days)
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return date.toLocaleDateString();
-    });
-
-    const bookingsByDate = {};
-    const revenueByDate = {};
-    
-    last7Days.forEach(date => {
-      bookingsByDate[date] = 0;
-      revenueByDate[date] = 0;
-    });
-
-    bookings.forEach(booking => {
-      const bookingDate = new Date(booking.createdAt).toLocaleDateString();
-      if (bookingsByDate.hasOwnProperty(bookingDate)) {
-        bookingsByDate[bookingDate]++;
-        if (['confirmed', 'checked-in'].includes(booking.status)) {
-          revenueByDate[bookingDate] += booking.totalPrice || 0;
-        }
+    const activeShowtimes = safeShowtimes.filter(showtime => {
+      try {
+        return showtime && showtime.endTime && new Date(showtime.endTime) > now;
+      } catch (error) {
+        console.warn('Error filtering showtime:', error);
+        return false;
       }
     });
 
-    const bookingsData = last7Days.map(date => ({
-      date: date.split('/').slice(0, 2).join('/'),
-      bookings: bookingsByDate[date]
-    }));
+    const totalRevenue = safeBookings
+      .filter(booking => booking && ['confirmed', 'checked-in'].includes(booking.status))
+      .reduce((sum, booking) => {
+        const price = booking.totalPrice || booking.totalAmount || 0;
+        return sum + (typeof price === 'number' ? price : 0);
+      }, 0);
 
-    const revenueData = last7Days.map(date => ({
-      date: date.split('/').slice(0, 2).join('/'),
-      revenue: revenueByDate[date]
-    }));
-
-    // Process booking status distribution
-    const statusCount = bookings.reduce((acc, booking) => {
-      const status = booking.status || 'unknown';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {});
-
-    const bookingStatusData = Object.entries(statusCount).map(([status, count]) => ({
-      status: status.charAt(0).toUpperCase() + status.slice(1),
-      count,
-      percentage: bookings.length > 0 ? ((count / bookings.length) * 100).toFixed(1) : '0'
-    }));
-
-    // Calculate hall occupancy
-    const hallOccupancyData = calculateHallOccupancy(halls, bookings);
+    // Process chart data
+    const chartData = processChartData(safeBookings);
+    const hallOccupancyData = calculateHallOccupancy(safeHalls, safeBookings);
 
     return {
       stats: {
-        totalMovies: movies.length,
-        totalHalls: halls.length,
-        totalBookings: bookings.length,
+        totalMovies: safeMovies.length,
+        totalHalls: safeHalls.length,
+        totalBookings: safeBookings.length,
         totalRevenue,
         activeShowtimes: activeShowtimes.length,
-        totalUsers: users.length
+        totalUsers: safeUsers.length
       },
-      bookingsData,
-      revenueData,
-      bookingStatusData,
+      ...chartData,
       hallOccupancyData
     };
   };
 
   const getStatusColor = (status) => {
-    const lowerStatus = status.toLowerCase();
+    const lowerStatus = (status || '').toLowerCase();
     switch (lowerStatus) {
       case 'confirmed': return '#10b981';
       case 'pending': return '#f59e0b';
@@ -343,7 +448,6 @@ function AdminDashboard() {
           </div>
         </div>
         
-        {/* Error/Warning Banner */}
         {error && (
           <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <div className="flex items-center">
@@ -351,15 +455,6 @@ function AdminDashboard() {
               <div>
                 <p className="text-yellow-700 font-medium">Warning</p>
                 <p className="text-yellow-600 text-sm">{error}</p>
-                <div className="mt-2 text-sm text-yellow-600">
-                  <p>Troubleshooting steps:</p>
-                  <ul className="list-disc list-inside ml-4 mt-1">
-                    <li>Ensure your backend server is running (typically on port 5000)</li>
-                    <li>Check that MongoDB is connected</li>
-                    <li>Verify API routes are properly configured</li>
-                    <li>Check browser console for detailed error messages</li>
-                  </ul>
-                </div>
               </div>
             </div>
           </div>
@@ -372,7 +467,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Movies</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalMovies}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.totalMovies || 0}</p>
             </div>
             <Film className="w-8 h-8 text-blue-500" />
           </div>
@@ -382,7 +477,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Halls</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalHalls}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.totalHalls || 0}</p>
             </div>
             <Building2 className="w-8 h-8 text-green-500" />
           </div>
@@ -392,7 +487,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Showtimes</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.activeShowtimes}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.activeShowtimes || 0}</p>
             </div>
             <Calendar className="w-8 h-8 text-yellow-500" />
           </div>
@@ -402,7 +497,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalBookings}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.totalBookings || 0}</p>
             </div>
             <Ticket className="w-8 h-8 text-purple-500" />
           </div>
@@ -412,7 +507,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.totalUsers || 0}</p>
             </div>
             <Users className="w-8 h-8 text-red-500" />
           </div>
@@ -422,7 +517,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${stats.totalRevenue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">${(stats?.totalRevenue || 0).toFixed(2)}</p>
             </div>
             <DollarSign className="w-8 h-8 text-indigo-500" />
           </div>
@@ -438,7 +533,7 @@ function AdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Bookings Trend (Last 7 Days)</h3>
           </div>
           <div className="h-64">
-            {bookingsData.length > 0 ? (
+            {Array.isArray(bookingsData) && bookingsData.length > 0 && bookingsData.some(d => d.bookings > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={bookingsData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -458,8 +553,11 @@ function AdminDashboard() {
               <div className="flex items-center justify-center h-full text-gray-500">
                 <div className="text-center">
                   <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No booking data available</p>
-                  <p className="text-sm">Data will appear when bookings are made</p>
+                  <p>No booking data available for charts</p>
+                  <p className="text-sm">This may indicate a date processing issue</p>
+                  {bookingsData && bookingsData.length > 0 && (
+                    <p className="text-xs mt-2">({bookingsData.length} data points found, but all zeros)</p>
+                  )}
                 </div>
               </div>
             )}
@@ -473,7 +571,7 @@ function AdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Revenue Trend (Last 7 Days)</h3>
           </div>
           <div className="h-64">
-            {revenueData.length > 0 && revenueData.some(d => d.revenue > 0) ? (
+            {Array.isArray(revenueData) && revenueData.length > 0 && revenueData.some(d => d.revenue > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -487,8 +585,11 @@ function AdminDashboard() {
               <div className="flex items-center justify-center h-full text-gray-500">
                 <div className="text-center">
                   <DollarSign className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No revenue data available</p>
-                  <p className="text-sm">Revenue will appear when bookings are confirmed</p>
+                  <p>No revenue data available for charts</p>
+                  <p className="text-sm">Revenue appears when bookings are confirmed</p>
+                  {revenueData && revenueData.length > 0 && (
+                    <p className="text-xs mt-2">({revenueData.length} data points found, but all zeros)</p>
+                  )}
                 </div>
               </div>
             )}
@@ -504,7 +605,7 @@ function AdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Booking Status Distribution</h3>
           </div>
           <div className="h-64">
-            {bookingStatusData.length > 0 ? (
+            {Array.isArray(bookingStatusData) && bookingStatusData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -542,22 +643,22 @@ function AdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Hall Occupancy</h3>
           </div>
           <div className="h-64">
-            {hallOccupancyData.length > 0 ? (
+            {Array.isArray(hallOccupancyData) && hallOccupancyData.length > 0 ? (
               <div className="space-y-4 max-h-64 overflow-y-auto">
                 {hallOccupancyData.map((hall, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center min-w-0 flex-1">
                       <Building2 className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                      <span className="text-sm font-medium text-gray-700 truncate">{hall.name}</span>
+                      <span className="text-sm font-medium text-gray-700 truncate">{hall.name || 'Unknown Hall'}</span>
                     </div>
                     <div className="flex items-center ml-4">
                       <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
                         <div 
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${Math.min(hall.occupancy, 100)}%` }}
+                          style={{ width: `${Math.min(parseFloat(hall.occupancy) || 0, 100)}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-600 min-w-[3rem]">{hall.occupancy}%</span>
+                      <span className="text-sm text-gray-600 min-w-[3rem]">{hall.occupancy || '0'}%</span>
                     </div>
                   </div>
                 ))}
@@ -627,8 +728,6 @@ function AdminDashboard() {
           </Link>
         </div>
       </div>
-
-      
     </div>
   );
 }

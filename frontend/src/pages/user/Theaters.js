@@ -43,7 +43,7 @@ function Theaters() {
       setError(null);
       
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE_URL}/api/halls`, {
+      const response = await fetch(`${API_BASE_URL}/halls`, {
         method: 'GET',
         credentials: 'include',
         headers: {
