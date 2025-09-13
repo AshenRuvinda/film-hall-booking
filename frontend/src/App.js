@@ -17,6 +17,8 @@ import SeatSelection from './pages/user/SeatSelection';
 import BookingSummary from './pages/user/BookingSummary';
 import MyBookings from './pages/user/MyBookings';
 import AboutUs from './pages/user/AboutUs';
+import Profile from './pages/user/Profile';
+import Settings from './pages/user/Settings';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -80,6 +82,16 @@ function App() {
             <Route path="/user/about" element={
               <ProtectedRoute requiredRole="user">
                 <AboutUs />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/profile" element={
+              <ProtectedRoute requiredRole="user">
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/user/settings" element={
+              <ProtectedRoute requiredRole="user">
+                <Settings />
               </ProtectedRoute>
             } />
             

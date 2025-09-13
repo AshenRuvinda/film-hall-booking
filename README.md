@@ -60,3 +60,16 @@ Frontend: react, react-router-dom, axios, jspdf, qrcode, jsqr, tailwindcss
 
 License
 ISC
+
+
+User Logins
+ashen@gmail.com
+123456
+
+Admin Logins
+adminTLK@staff.com
+admin123
+
+Operator Logins
+operatorTLK@staff.com
+operator123
