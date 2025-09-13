@@ -1,4 +1,4 @@
-// frontend/src/components/common/Navbar.js - UPDATED WITHOUT REWARDS
+// frontend/src/components/common/Navbar.js - COMPLETE VERSION WITH THEATERS LINK
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
@@ -107,6 +107,7 @@ function Navbar() {
         return (
           <>
             <NavLink to="/user/dashboard">Movies</NavLink>
+            <NavLink to="/user/theaters">Theaters</NavLink>
             <NavLink to="/user/bookings">My Tickets</NavLink>
             <NavLink to="/user/about">About</NavLink>
           </>

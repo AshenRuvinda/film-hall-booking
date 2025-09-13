@@ -13,6 +13,7 @@ const operatorRoutes = require('./routes/operatorRoutes');
 const movieRoutes = require('./routes/movieRoutes');
 const showtimeRoutes = require('./routes/showtimeRoutes');
 const dashboardRoutes = require('./routes/dashboard'); // NEW - Dashboard routes
+const publicRoutes = require('./routes/publicRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -89,6 +90,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/operator', operatorRoutes);
+app.use('/api', publicRoutes);
 
 // 404 handler
 app.use('/api/*', (req, res) => {
