@@ -21,6 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import api from '../../utils/api';
+import { fetchMovieDetails } from '../../utils/movieApi';
 
 function MovieDetail() {
   const { id } = useParams();
@@ -155,37 +156,21 @@ function MovieDetail() {
   const fetchTmdbData = async (title) => {
     try {
       setLoadingTmdb(true);
-      const TMDB_API_KEY = process.env.REACT_APP_TMDB_API_KEY;
+      console.log(`🌐 Fetching enhanced movie data from TMDB for: ${title}`);
       
-      if (!TMDB_API_KEY) {
-        console.warn('TMDB API key not configured');
-        return;
-      }
-
-      // Search for movie by title
-      const searchResponse = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`
-      );
+      // Use the movieApi utility to fetch from TMDB
+      const enhancedData = await fetchMovieDetails(title, {
+        preferredAPI: 'tmdb',
+        isTitle: true,
+        fallback: true
+      });
       
-      if (!searchResponse.ok) throw new Error('TMDB API error');
+      console.log('✅ Enhanced movie data received:', enhancedData);
+      setTmdbData(enhancedData);
       
-      const searchData = await searchResponse.json();
-      
-      if (searchData.results && searchData.results.length > 0) {
-        const movieId = searchData.results[0].id;
-        
-        // Fetch detailed movie information
-        const detailResponse = await fetch(
-          `https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits,videos,images`
-        );
-        
-        if (detailResponse.ok) {
-          const detailData = await detailResponse.json();
-          setTmdbData(detailData);
-        }
-      }
     } catch (error) {
-      console.error('TMDB fetch error:', error);
+      console.error('❌ Failed to fetch enhanced movie data:', error.message);
+      // Not fatal - we'll just display data from our backend
     } finally {
       setLoadingTmdb(false);
     }
@@ -258,28 +243,47 @@ function MovieDetail() {
     if (tmdbData) {
       return {
         title: tmdbData.title || movie.title,
-        poster: tmdbData.poster_path 
-          ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`
+        poster: tmdbData.poster || tmdbData.poster_path
+          ? (tmdbData.poster || `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`)
           : movie.poster,
-        backdrop: tmdbData.backdrop_path
-          ? `https://image.tmdb.org/t/p/w1280${tmdbData.backdrop_path}`
+        backdrop: tmdbData.backdrop || tmdbData.backdrop_path
+          ? (tmdbData.backdrop || `https://image.tmdb.org/t/p/w1280${tmdbData.backdrop_path}`)
           : null,
-        plot: tmdbData.overview || movie.description,
-        year: tmdbData.release_date ? new Date(tmdbData.release_date).getFullYear() : null,
-        runtime: tmdbData.runtime ? `${tmdbData.runtime} min` : movie.duration ? `${movie.duration} min` : null,
-        rating: tmdbData.vote_average ? tmdbData.vote_average.toFixed(1) : null,
-        genres: tmdbData.genres?.map(g => g.name).join(', ') || movie.genre,
-        director: tmdbData.credits?.crew?.find(c => c.job === 'Director')?.name,
-        cast: tmdbData.credits?.cast?.slice(0, 5).map(c => c.name).join(', '),
-        language: tmdbData.original_language?.toUpperCase(),
+        plot: tmdbData.plot || tmdbData.overview || movie.description || 'No plot description available.',
+        year: tmdbData.year || (tmdbData.release_date ? new Date(tmdbData.release_date).getFullYear() : null),
+        runtime: tmdbData.runtime || (movie.duration ? `${movie.duration} min` : null),
+        rating: tmdbData.rating ? (typeof tmdbData.rating === 'string' ? tmdbData.rating : tmdbData.rating.toFixed(1)) : null,
+        genres: tmdbData.genres || movie.genre,
+        director: tmdbData.director,
+        cast: tmdbData.cast,
+        castDetails: tmdbData.castDetails || [],
+        language: tmdbData.language,
         budget: tmdbData.budget,
         revenue: tmdbData.revenue,
         tagline: tmdbData.tagline,
         homepage: tmdbData.homepage,
-        trailer: tmdbData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube')
+        trailer: tmdbData.trailer
       };
     }
-    return movie;
+    return {
+      ...movie,
+      plot: movie.description || 'No plot description available.',
+      poster: movie.poster,
+      backdrop: null,
+      year: null,
+      runtime: movie.duration ? `${movie.duration} min` : null,
+      rating: null,
+      genres: movie.genre,
+      director: null,
+      cast: null,
+      castDetails: [],
+      language: null,
+      budget: null,
+      revenue: null,
+      tagline: null,
+      homepage: null,
+      trailer: null
+    };
   };
 
   // Loading state
@@ -394,11 +398,12 @@ function MovieDetail() {
                   )}
                   
                   {/* Trailer Button Overlay */}
-                  {displayData.trailer && (
+                  {displayData.trailer && displayData.trailer.key && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => window.open(`https://www.youtube.com/watch?v=${displayData.trailer.key}`, '_blank')}
                         className="bg-red-600 hover:bg-red-700 text-white rounded-full p-4 transition-colors"
+                        title="Watch Trailer"
                       >
                         <Play className="w-8 h-8" />
                       </button>
@@ -503,14 +508,14 @@ function MovieDetail() {
                           <p className="text-gray-300">{displayData.director}</p>
                         </div>
                       )}
-                      {tmdbData?.credits?.cast && tmdbData.credits.cast.length > 0 && (
+                      {displayData.castDetails && displayData.castDetails.length > 0 && (
                         <div className="lg:col-span-2">
                           <h4 className="text-white font-semibold mb-4 flex items-center">
                             <Users className="w-4 h-4 mr-2 text-blue-400" />
                             Cast
                           </h4>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {tmdbData.credits.cast.slice(0, 10).map((actor, index) => (
+                            {displayData.castDetails.slice(0, 10).map((actor, index) => (
                               <div key={index} className="text-center group">
                                 <div className="relative mb-2 overflow-hidden rounded-lg">
                                   <img
@@ -535,15 +540,15 @@ function MovieDetail() {
                               </div>
                             ))}
                           </div>
-                          {tmdbData.credits.cast.length > 10 && (
+                          {displayData.castDetails.length > 10 && (
                             <p className="text-gray-400 text-sm mt-3 text-center">
-                              And {tmdbData.credits.cast.length - 10} more cast members...
+                              And {displayData.castDetails.length - 10} more cast members...
                             </p>
                           )}
                         </div>
                       )}
-                      {/* Fallback for when TMDB data isn't available */}
-                      {displayData.cast && (!tmdbData?.credits?.cast || tmdbData.credits.cast.length === 0) && (
+                      {/* Fallback for when TMDB data isn't available or doesn't have detailed cast */}
+                      {displayData.cast && (!displayData.castDetails || displayData.castDetails.length === 0) && (
                         <div>
                           <h4 className="text-white font-semibold mb-2 flex items-center">
                             <Users className="w-4 h-4 mr-2 text-blue-400" />

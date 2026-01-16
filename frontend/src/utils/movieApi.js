@@ -112,7 +112,7 @@ export const MOVIE_API_CONFIG = {
         movieData = searchData.results[0];
       } else {
         // Get movie by ID
-        const url = `${MOVIE_API_CONFIG.TMDB.BASE_URL}/movie/${movieId}?api_key=${apiKey}&language=en-US`;
+        const url = `${MOVIE_API_CONFIG.TMDB.BASE_URL}/movie/${movieId}?api_key=${apiKey}&language=en-US&append_to_response=videos,credits`;
         const response = await fetch(url);
         movieData = await response.json();
         
@@ -121,10 +121,23 @@ export const MOVIE_API_CONFIG = {
         }
       }
       
-      // Fetch additional details (credits)
-      const creditsUrl = `${MOVIE_API_CONFIG.TMDB.BASE_URL}/movie/${movieData.id}/credits?api_key=${apiKey}`;
-      const creditsResponse = await fetch(creditsUrl);
-      const creditsData = await creditsResponse.json();
+      // Fetch additional details (credits and videos)
+      let creditsData = movieData.credits;
+      let videosData = movieData.videos;
+      
+      // If search, fetch credits and videos separately
+      if (isSearch) {
+        const creditsUrl = `${MOVIE_API_CONFIG.TMDB.BASE_URL}/movie/${movieData.id}/credits?api_key=${apiKey}`;
+        const creditsResponse = await fetch(creditsUrl);
+        creditsData = await creditsResponse.json();
+        
+        const videosUrl = `${MOVIE_API_CONFIG.TMDB.BASE_URL}/movie/${movieData.id}/videos?api_key=${apiKey}`;
+        const videosResponse = await fetch(videosUrl);
+        videosData = await videosResponse.json();
+      }
+      
+      // Find trailer from videos
+      const trailer = videosData?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
       
       return {
         id: movieData.id,
@@ -132,8 +145,9 @@ export const MOVIE_API_CONFIG = {
         title: movieData.title,
         year: movieData.release_date ? new Date(movieData.release_date).getFullYear() : null,
         genre: movieData.genres?.map(g => g.name).join(', '),
-        director: creditsData.crew?.find(person => person.job === 'Director')?.name,
-        cast: creditsData.cast?.slice(0, 5).map(actor => actor.name).join(', '),
+        director: creditsData?.crew?.find(person => person.job === 'Director')?.name,
+        cast: creditsData?.cast?.slice(0, 5).map(actor => actor.name).join(', '),
+        castDetails: creditsData?.cast?.slice(0, 10) || [],
         plot: movieData.overview,
         poster: movieData.poster_path ? `${MOVIE_API_CONFIG.TMDB.IMAGE_BASE_URL}${movieData.poster_path}` : null,
         backdrop: movieData.backdrop_path ? `https://image.tmdb.org/t/p/w1280${movieData.backdrop_path}` : null,
@@ -145,6 +159,7 @@ export const MOVIE_API_CONFIG = {
         voteCount: movieData.vote_count,
         budget: movieData.budget > 0 ? `${movieData.budget.toLocaleString()}` : null,
         revenue: movieData.revenue > 0 ? `${movieData.revenue.toLocaleString()}` : null,
+        trailer: trailer || null,
         source: 'The Movie Database'
       };
     } catch (error) {
